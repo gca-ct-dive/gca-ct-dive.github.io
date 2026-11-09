@@ -96,6 +96,10 @@ button:focus-visible,.visit:focus-visible{outline:3px solid var(--coral);outline
 .skip{position:fixed;left:12px;top:-60px;z-index:20;background:var(--glow);color:var(--ink);padding:10px 14px;border-radius:10px;font-weight:600;text-decoration:none}
 .skip:focus{top:calc(10px + env(safe-area-inset-top,0px))}
 .count{margin:12px 0 0;font-size:12px;color:var(--muted)}
+.notice{margin:22px 0 4px;padding:14px 14px 12px;border-top:1px solid rgba(127,140,150,.3);font-size:12px;line-height:1.6;color:var(--muted)}
+.notice h3{margin:0 0 6px;font-size:12.5px;font-weight:600;color:inherit}.notice p{margin:0;word-break:keep-all}
+body.lst .talk{visibility:hidden}
+#noticeBtn{display:block;margin:10px auto 0;background:none;border:0;padding:4px 8px;font:500 12px var(--body);color:#6b7a86;text-decoration:underline;text-underline-offset:3px;box-shadow:none;cursor:pointer}
 .cos{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px}
 .co{background:rgba(230,246,247,.06);border-radius:14px;padding:12px;display:grid;grid-template-columns:52px 1fr;gap:8px 12px;align-items:start;min-width:0}
 .co .lg{width:52px;height:52px;border-radius:10px;display:grid;place-items:center;font-size:26px;overflow:hidden;background:#fff}
@@ -168,7 +172,7 @@ button:focus-visible,.visit:focus-visible{outline:3px solid var(--coral);outline
 </div>
 <div class="hint" id="hint">패드를 밀거나 화면을 눌러 헤엄쳐요</div>
 
-<div id="talk" class="talk"><p>'26년 문화기술 산업육성 사업<br>지원기업의 바다로 빠져볼까?'</p><button id="diveBtn" type="button">다이브!</button></div>
+<div id="talk" class="talk"><p>'26년 문화기술 산업육성 사업<br>지원기업의 바다로 빠져볼까?'</p><button id="diveBtn" type="button">다이브!</button><button id="noticeBtn" type="button">이용 안내</button></div>
 
 <div class="sheet" id="sheet" role="dialog" aria-label="기업 소개">
   <div class="sheet-in">
@@ -196,6 +200,7 @@ button:focus-visible,.visit:focus-visible{outline:3px solid var(--coral);outline
     <button id="seeAll" class="seeAll" type="button">바다에서 전체 한꺼번에 보기</button>
     <p class="count" id="listCount" aria-live="polite"></p>
     <div id="listBody"></div>
+    <footer class="notice" id="notice"><h3>이용 안내</h3><p>본 페이지는 2026 경기도 문화기술 산업육성 사업 지원기업 소개를 위해 경기콘텐츠진흥원이 제작했습니다. 각 기업의 로고와 상표에 대한 권리는 해당 기업에 있으며, 연결된 외부 사이트의 내용은 각 기업이 책임집니다. 이 페이지는 개인정보를 수집하지 않습니다.</p></footer>
   </div>
 </div>
 
@@ -544,7 +549,7 @@ cv.addEventListener('wheel',e=>{if(phase!=='swim'||sheetOpen)return;e.preventDef
 addEventListener('keydown',e=>{keys[e.key]=true;if(e.key==='Escape')closeAll();if(e.key==='m'||e.key==='M')$('viewBtn').click()});
 addEventListener('keyup',e=>keys[e.key]=false);
 
-function closeAll(){if($('listSheet').classList.contains('open')&&lastFocus&&lastFocus.focus)setTimeout(()=>lastFocus.focus({preventScroll:true}),0);sheetOpen=false;$('sheet').classList.remove('open');$('listSheet').classList.remove('open')}
+function closeAll(){if($('listSheet').classList.contains('open')&&lastFocus&&lastFocus.focus)setTimeout(()=>lastFocus.focus({preventScroll:true}),0);sheetOpen=false;$('sheet').classList.remove('open');$('listSheet').classList.remove('open');document.body.classList.remove('lst')}
 function openCompany(c){
   closeAll();sheetOpen=true;found.add(c.name);
   $('found').firstChild.nodeValue=found.size;
@@ -591,7 +596,7 @@ function setFilter(f){
   renderList();
 }
 let lastFocus=null;
-function openList(){lastFocus=document.activeElement;closeAll();sheetOpen=true;renderList();$('listSheet').scrollTop=0;$('listSheet').classList.add('open');setTimeout(()=>$('q').focus({preventScroll:true}),350)}
+function openList(){lastFocus=document.activeElement;closeAll();sheetOpen=true;renderList();$('listSheet').scrollTop=0;$('listSheet').classList.add('open');document.body.classList.add('lst');setTimeout(()=>$('q').focus({preventScroll:true}),350)}
 $('q').addEventListener('input',e=>{query=e.target.value.trim();renderList()});
 $('skipList').addEventListener('click',e=>{e.preventDefault();openList()});
 document.querySelector('.tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){listTab=b.dataset.tab;renderList()}});
@@ -601,6 +606,7 @@ $('seeAll').onclick=()=>{closeAll();if(!started)begin();setOverview(true)};
 $('listBody').addEventListener('click',e=>{const b=e.target.closest('button[data-i]');if(!b)return;
   const c=COMPANIES[+b.dataset.i],tg=approach(c);closeAll();setOverview(false);if(phase!=='swim')begin(tg);else{fast=true;target=tg}});
 $('listBtn').onclick=()=>sheetOpen?closeAll():openList();
+$('noticeBtn').onclick=e=>{e.stopPropagation();openList();setTimeout(()=>{$('notice').scrollIntoView({block:'center'})},380)};
 $('listClose').onclick=closeAll;$('close').onclick=closeAll;
 $('diveBtn').onclick=()=>begin();
 $('hint').style.opacity=0;

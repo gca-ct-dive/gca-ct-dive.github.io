@@ -311,7 +311,7 @@ function spawn(type,n,z,o={}){n=Math.max(1,Math.round(n*DENS));for(let i=0;i<n;i
   off:o.n?[...Array(30)].map(()=>({x:rnd(-1,1),y:rnd(-.6,.6),p:Math.random()*6})):null})}
 spawn('whale',3,.32,{v0:14,v1:22,s0:1,s1:1.3,y0:SURFACE+300,y1:WORLD_H*.6});
 spawn('manta',4,()=>rnd(.4,.55),{v0:22,v1:32,s0:.8,s1:1.1});
-spawn('shark',5,()=>rnd(.55,.72),{v0:18,v1:28,s0:.8,s1:1.1});
+spawn('shark',5,()=>rnd(.55,.72),{v0:11,v1:17,s0:.8,s1:1.1});
 spawn('turtle',4,()=>rnd(.6,.8),{v0:18,v1:26,s0:.7,s1:1,y0:SURFACE+150,y1:WORLD_H*.55});
 spawn('school',7,()=>rnd(.45,.7),{v0:35,v1:55,n:[10,18]});
 spawn('school',6,1,{v0:45,v1:70,n:[6,11],cols:['#ffb86b','#7fd1ff','#ffe17a','#ff8fb1','#9df5c4']});
@@ -782,7 +782,7 @@ function updateBukang(dt){
   if(bk.timer<=0){bk.timer=9;bk.on=true;bk.p=0;bk.dir=Math.random()<.5?1:-1;bk.yf=rnd(.38,.72);bk.Z3=cam3.z+rnd(560,860);bk.Y3=rnd(-190,-60)}
   if(bk.say>0)bk.say-=dt;
   bk.X3=-bk.dir*1300+bk.dir*2600*bk.p;
-  if(bk.on){bk.p+=dt/7.5*(bk.say>0?.4:1);if(bk.p>=1)bk.on=false}
+  if(bk.on){bk.p+=dt/11*(bk.say>0?.4:1);if(bk.p>=1)bk.on=false}
 }
 function drawBukang(){
   if(!bk.on)return;const t=diver.t,vw=W/S,vh=H/S;
@@ -792,7 +792,7 @@ function drawBukang(){
   else{const x=cam.x+fx*vw,y=Math.max(SURFACE+90,cam.y+bk.yf*vh+Math.sin(t*2)*10);scx=(x-cam.x)*S;scy=(y-cam.y)*S;sk=S}
   bk.sx=scx;bk.sy=scy;bk.sk=sk;
   ctx.save();ctx.setTransform(DPR*sk,0,0,DPR*sk,DPR*scx,DPR*scy);
-  if(SPR.ready.shark){ctx.save();ctx.scale(bk.dir,1);drawSpr('shark',200,.42,t,0);ctx.restore()}else{
+  if(SPR.ready.shark){ctx.save();ctx.scale(bk.dir,1);drawSpr('shark',205,.32,t,0);ctx.restore()}else{
   ctx.save();ctx.scale(bk.dir*1.3,1.3);ctx.rotate(Math.sin(t*6.5)*.05);
   // 꼬리 쪽으로 갈수록 크게 흔들리는 몸통 물결
   const ph=t*4,wv=x=>Math.sin(ph-x*.055)*6*((52-x)/104+.08),Y=(x,y)=>y+wv(x),tsw=Math.cos(ph+48*.055)*.5;
@@ -1809,8 +1809,146 @@ const SPR={ready:{},queue:[],built:false};
     const tl=new THREE.Group();tl.position.set(-1,0,0);b.add(tl);const tf=new THREE.Mesh(SG,M(0x6e5438));tf.scale.set(.22,.02,.24);tf.position.x=-.15;tl.add(tf);
     const fg=new THREE.Group();fg.rotation.x=-1.1;fg.position.set(.55,.12,-.05);b.add(fg);eye(fg,0,.02,.0,.1);eye(fg,.1,.14,-.04,.09);
     g.userData.anim=k=>{const t=k*6.283;fr.forEach((f,i)=>f.position.y=Math.sin(t*2+i*.9)*.03);tl.rotation.y=Math.sin(t)*.25};return g};
+  /* ══ 실사에 가깝지만 귀여운 3D 물고기·고래 (회전체 몸통 + 입체 지느러미 + 실제 헤엄 동작) ══ */
+  // 무늬 좌표: 가로 0 가까운 옆 → .25 배 → .5 먼 옆 → .75 등 / 세로 0 머리 → 1 꼬리
+  function bodyTex(o){const c=document.createElement('canvas');c.width=256;c.height=128;const g=c.getContext('2d');
+    const gr=g.createLinearGradient(0,0,256,0);[[0,o.base],[.09,o.base],[.18,o.belly],[.25,o.belly],[.32,o.belly],[.41,o.base],[.5,o.base],[.6,o.back],[.75,o.back],[.9,o.back],[1,o.base]].forEach(([p,c2])=>gr.addColorStop(p,c2));
+    g.fillStyle=gr;g.fillRect(0,0,256,128);
+    (o.bands||[]).forEach(([v0,v1,col])=>{g.fillStyle=col;g.fillRect(0,v0*128,256,(v1-v0)*128)});
+    if(o.thin){g.fillStyle=o.thin;for(let i=0;i<o.thinN;i++){const v=.2+i*(.65/o.thinN);g.fillRect(0,v*128,256,2.2)}}
+    if(o.spots){const [col,n,r,belly]=o.spots;g.fillStyle=col;for(let i=0;i<n;i++){const u=Math.random();if(!belly&&Math.abs(u-.25)<.1)continue;const v=.08+Math.random()*.84;g.beginPath();g.arc(u*256,v*128,r*(.6+Math.random()*.8),0,6.28);g.fill()}}
+    if(o.patch){g.fillStyle=o.patch;[0,256,128].forEach(x=>{g.beginPath();g.ellipse(x,66,34,40,0,0,6.28);g.fill()})}
+    if(o.eyespot){[[226,98],[98,98]].forEach(([x,y])=>{g.fillStyle='#fff6c8';g.beginPath();g.arc(x,y,13,0,6.28);g.fill();g.fillStyle='#14161a';g.beginPath();g.arc(x,y,9,0,6.28);g.fill()})}
+    if(o.eyebar){g.fillStyle=o.eyebar;g.fillRect(0,12,256,10)}
+    if(o.wavy){g.strokeStyle=o.wavy;g.lineWidth=2.2;for(let i=0;i<10;i++){g.beginPath();for(let y=14;y<118;y+=4){const x=150+i*9+Math.sin(y*.25+i)*4;y===14?g.moveTo(x,y):g.lineTo(x,y)}g.stroke()}}
+    if(o.pleats){g.strokeStyle=o.pleats;g.lineWidth=1.6;for(let i=0;i<9;i++){const x=40+i*6;g.beginPath();g.moveTo(x,6);g.lineTo(x+2,60);g.stroke()}}
+    if(o.orca){g.fillStyle='#f4f6f4';[[14,26],[114,26],[242,26]].forEach(([x,y])=>{g.beginPath();g.ellipse(x,y,14,8,0,0,6.28);g.fill()});
+      g.beginPath();g.ellipse(64,40,58,40,0,0,6.28);g.fill();g.beginPath();g.ellipse(64,92,26,22,0,0,6.28);g.fill();g.fillStyle='rgba(150,160,166,.8)';g.beginPath();g.ellipse(192,70,30,9,0,0,6.28);g.fill()}
+    if(o.mottle){for(let i=0;i<120;i++){g.fillStyle=`rgba(255,255,255,${Math.random()*.12})`;g.beginPath();g.arc(Math.random()*256,Math.random()*128,1+Math.random()*3,0,6.28);g.fill()}}
+    // 은은한 비늘 결
+    if(o.scales!==false){g.strokeStyle='rgba(255,255,255,.07)';g.lineWidth=1;for(let y=8;y<120;y+=7)for(let x=0;x<256;x+=8){g.beginPath();g.arc(x+(y%14?4:0),y,4,0,Math.PI);g.stroke()}}
+    return new THREE.CanvasTexture(c)}
+  function profFn(o){const h=o.h,tn=o.tn||.3,tm=o.tm||.55,sn=o.snout||.55,st=o.stalk||.18;
+    return t=>t<tn?h*(.08+.92*Math.pow(t/tn,sn)):t<tm?h:h*(st+(1-st)*Math.pow(Math.max(0,1-(t-tm)/(1-tm)),1.25))}
+  function eyeCute(p,x,y,z,r,side){const g=new THREE.Group();g.position.set(x,y,z);p.add(g);
+    const sc=new THREE.Mesh(SG,mWhite);sc.scale.set(r,r,r*.55);g.add(sc);
+    const ir=new THREE.Mesh(SG,new THREE.MeshStandardMaterial({color:0x101418,roughness:.12,metalness:.2}));ir.scale.set(r*.74,r*.78,r*.3);ir.position.set(r*.08,0,r*.36);g.add(ir);
+    const hi=new THREE.Mesh(SG,mWhite);hi.scale.set(r*.24,r*.24,r*.1);hi.position.set(-r*.12,r*.28,r*.58);g.add(hi);
+    const h2=new THREE.Mesh(SG,mWhite);h2.scale.set(r*.1,r*.1,r*.05);h2.position.set(r*.22,-r*.2,r*.6);g.add(h2);
+    g.rotation.y=side>0?.25:Math.PI-.25;return g}
+  /* 물고기: 옆으로 납작한 몸이 S자로 물결치며 헤엄 */
+  function makeFish2(o){
+    const g=new THREE.Group(),body=new THREE.Group();g.add(body);
+    const pf=profFn(o),pts=[];for(let i=0;i<=40;i++){const t=i/40;pts.push(new THREE.Vector2(Math.max(.004,pf(t)),1-2*t))}
+    const hull=new THREE.Mesh(new THREE.LatheGeometry(pts,30),new THREE.MeshStandardMaterial({color:0xffffff,map:bodyTex(o),roughness:o.rough||.38,metalness:o.metal||.08}));
+    hull.rotation.z=-Math.PI/2;hull.scale.set(1,1,o.wr||.45);body.add(hull);
+    const A=o.amp||.13,WV=o.waves||.55;const wave=undulator(hull,A/(o.wr||.45),WV);
+    const topAt=x=>pf((1-x)/2),bz=(a,x)=>bendAt(A,WV,a,(1-x)/2);
+    const finM=new THREE.MeshStandardMaterial({color:new THREE.Color(o.fin||o.back),roughness:.42,side:THREE.DoubleSide,transparent:true,opacity:o.finOp||.93});
+    const parts=[];const add=(m,x)=>{body.add(m);parts.push([m,x,m.position.z]);return m};
+    // 등지느러미
+    (o.dorsals||[[.25,.95,.32]]).forEach(([x0,len,ht,spiny])=>{let p=[[0,0]];
+      if(spiny){for(let i=0;i<=8;i++)p.push([-len*i/8,ht*(i%2?.62:1)*(1-i/14)]);p.push([-len,0])}else p=[[0,0],[-len*.25,ht*.95,-len*.45,ht],[-len*.7,ht*.85,-len,ht*.15],[-len,0]];
+      const m=new THREE.Mesh(finGeo(p,.025),finM);m.position.set(x0,topAt(x0)*.92,0);add(m,x0)});
+    // 뒷지느러미
+    if(o.anal!==false){const [x0,len,ht]=o.anal||[-.25,.45,.2];const m=new THREE.Mesh(finGeo([[0,0],[-len*.3,-ht,-len*.6,-ht],[-len,-ht*.2],[-len,0]],.02),finM);m.position.set(x0,-topAt(x0)*.9,0);add(m,x0)}
+    // 꼬리
+    const tail=new THREE.Group();tail.position.set(-.98,0,0);body.add(tail);const th=o.tailH||.5,tl=o.tailL||.42;
+    const tp={fork:[[.04,.03],[-tl*.5,th*.5,-tl,th],[-tl*.62,0],[-tl,-th],[-tl*.5,-th*.5,.04,-.03]],
+      round:[[.04,.05],[-tl*.4,th*.9,-tl*.95,th*.55],[-tl*1.05,0,-tl*.95,-th*.55],[-tl*.4,-th*.9,.04,-.05]],
+      lunate:[[.04,.03],[-tl*.3,th*.6,-tl*.9,th*1.05],[-tl*.55,0],[-tl*.9,-th*1.05],[-tl*.3,-th*.6,.04,-.03]],
+      truncate:[[.04,.04],[-tl,th*.85],[-tl*.9,0],[-tl,-th*.85],[.04,-.04]],
+      shark:[[.04,.03],[-tl*.3,th*.55,-tl*1.05,th*1.3],[-tl*.78,th*.25],[-tl*.55,0],[-tl*.72,-th*.62],[-tl*.25,-th*.3,.04,-.03]]}[o.tail||'fork'];
+    tail.add(new THREE.Mesh(finGeo(tp,.025),new THREE.MeshStandardMaterial({color:new THREE.Color(o.tailCol||o.fin||o.back),roughness:.42,side:THREE.DoubleSide})));
+    // 가슴·배지느러미
+    const pecs=[1,-1].map(s=>{const p=new THREE.Group();p.position.set(.42,-topAt(.42)*.35,s*topAt(.42)*(o.wr||.45)*.95);body.add(p);
+      const m=new THREE.Mesh(finGeo([[0,0],[-.12,.06,-.24,.02],[-.2,-.06],[-.06,-.04]],.015),finM);m.rotation.x=s*.4;p.add(m);return p});
+    if(o.pelvic!==false)[1,-1].forEach(s=>{const m=new THREE.Mesh(finGeo([[0,0],[-.12,-.1],[-.16,-.06]],.012),finM);m.position.set(.18,-topAt(.18)*.92,s*.05);m.rotation.x=s*.35;add(m,.18)});
+    // 얼굴
+    const ex=o.eyeX||.6,er=o.eye||Math.min(.13,topAt(ex)*.42);[1,-1].forEach(s=>eyeCute(body,ex,topAt(ex)*.22,s*topAt(ex)*(o.wr||.45)*.86,er,s));
+    if(o.blush!==false)[1,-1].forEach(s=>{const b=new THREE.Mesh(SG,mBlush);b.scale.set(er*.42,er*.24,er*.12);b.position.set(ex+.04,-topAt(ex)*.25,s*topAt(ex)*(o.wr||.45)*.88);body.add(b)});
+    const mo=new THREE.Mesh(new THREE.TorusGeometry(.04,.009,6,12,Math.PI),M(o.mouth||0x4a2626));mo.position.set(.985,-.03,0);mo.rotation.set(0,Math.PI/2,Math.PI);body.add(mo);
+    (o.extra||(()=>{}))(body,topAt,add);
+    const rate=o.tailBeat||1;
+    g.userData.anim=k=>{const a=k*6.283;wave(a);
+      const tz=bendAt(A,WV,a,1),tz2=bendAt(A,WV,a,.94);tail.position.z=tz;tail.rotation.y=Math.atan2(tz-tz2,.06)*1.15+Math.sin(a-2.1)*.22;
+      parts.forEach(([m,x,z0])=>{m.position.z=z0+bz(a,x)});
+      pecs.forEach((p,i)=>{p.rotation.y=(i?-1:1)*(.35+Math.sin(a*2+i)*.32);p.position.z=(i?-1:1)*Math.abs(p.position.z)+bz(a,.42)});
+      body.rotation.y=Math.sin(a+.4)*.03};
+    return g}
+  /* 고래: 위아래로 꼬리를 쳐서 헤엄(물고기와 반대), 가로로 누운 꼬리지느러미 */
+  function makeWhale2(o){
+    const g=new THREE.Group(),body=new THREE.Group();g.add(body);
+    const pf=profFn(o),pts=[];for(let i=0;i<=44;i++){const t=i/44;pts.push(new THREE.Vector2(Math.max(.004,pf(t)),1-2*t))}
+    const hull=new THREE.Mesh(new THREE.LatheGeometry(pts,32),new THREE.MeshStandardMaterial({color:0xffffff,map:bodyTex(o),roughness:.45,metalness:.05}));
+    hull.rotation.z=-Math.PI/2;hull.scale.set(1,1,o.wr||.9);body.add(hull);
+    // 위아래 물결 (로컬 X = 세로)
+    const geo=hull.geometry,pos=geo.attributes.position,base=pos.array.slice(),A=o.amp||.1;
+    const wave=a=>{for(let i=0;i<pos.count;i++){const y=base[i*3+1],t=Math.max(0,(1-y)/2),d=A*Math.pow(Math.max(0,t-.35)/.65,2)*Math.sin(a-t*2.2);pos.array[i*3]=base[i*3]-d}pos.needsUpdate=true;geo.computeVertexNormals()};
+    const bendY=(a,t)=>A*Math.pow(Math.max(0,t-.35)/.65,2)*Math.sin(a-t*2.2);
+    const topAt=x=>pf((1-x)/2);const finM=new THREE.MeshStandardMaterial({color:new THREE.Color(o.fin||o.back),roughness:.45,side:THREE.DoubleSide});
+    // 꼬리지느러미(가로)
+    const fl=new THREE.Group();fl.position.set(-.97,0,0);body.add(fl);
+    const fg=finGeo([[.05,0],[-.08,.12,-.3,.38],[-.36,.36],[-.22,.06],[-.24,0],[-.22,-.06],[-.36,-.36],[-.3,-.38],[-.08,-.12,.05,0]].map(p=>p.length===4?[p[0]*(o.flukeK||1),p[1]*(o.flukeK||1),p[2]*(o.flukeK||1),p[3]*(o.flukeK||1)]:[p[0]*(o.flukeK||1),p[1]*(o.flukeK||1)]),.03);
+    const fm=new THREE.Mesh(fg,finM);fm.rotation.x=Math.PI/2;fl.add(fm);
+    // 등지느러미
+    let dor=null;if(o.dorsal){dor=new THREE.Mesh(finGeo(o.dorsal,.03),finM);dor.position.set(o.dorsalX||-.45,topAt(o.dorsalX||-.45)*.9,0);body.add(dor)}
+    // 가슴지느러미
+    const flipM=o.flipCol?new THREE.MeshStandardMaterial({color:new THREE.Color(o.flipCol),roughness:.45,side:THREE.DoubleSide}):finM;
+    const flips=[1,-1].map(s=>{const p=new THREE.Group();p.position.set(o.flipX||.35,-topAt(o.flipX||.35)*.55,s*topAt(o.flipX||.35)*(o.wr||.9)*.85);body.add(p);
+      const L2=o.flipL||.3;const m=new THREE.Mesh(finGeo([[0,.03],[-L2*.4,.04,-L2,-.02],[-L2*.95,-.06],[-L2*.3,-.06],[0,-.03]],.03),flipM);m.rotation.x=s*1.1;m.rotation.y=s*.25;p.add(m);
+      if(o.knobs)for(let i=0;i<4;i++){const kn=new THREE.Mesh(SG,flipM);kn.scale.setScalar(.025);kn.position.set(-L2*(.2+i*.2),.04,0);m.add(kn)}return p});
+    // 얼굴 (작은 눈 + 미소)
+    const ex=o.eyeX||.55,er=o.eye||.055;[1,-1].forEach(s=>eyeCute(body,ex,-topAt(ex)*.15,s*topAt(ex)*(o.wr||.9)*.9,er,s));
+    [1,-1].forEach(s=>{const b=new THREE.Mesh(SG,mBlush);b.scale.set(er*.6,er*.3,er*.15);b.position.set(ex+.06,-topAt(ex)*.38,s*topAt(ex)*(o.wr||.9)*.88);body.add(b)});
+    const mo=new THREE.Mesh(new THREE.TorusGeometry(.16,.01,6,20,Math.PI*.55),M(o.mouth||0x2a3036));mo.rotation.set(0,0,Math.PI*1.22);mo.position.set(.78,-.02,0);mo.scale.set(1,.6,1);
+    [1,-1].forEach(s=>{const m2=mo.clone();m2.position.z=s*topAt(.8)*(o.wr||.9)*.9;body.add(m2)});
+    (o.extra||(()=>{}))(body,topAt);
+    g.userData.anim=k=>{const a=k*6.283;wave(a);const ty=bendY(a,1),ty2=bendY(a,.95);fl.position.x=-.97;fl.position.y=ty;fl.rotation.z=-Math.atan2(ty-ty2,.05)*1.1;
+      if(dor){dor.position.y=topAt(o.dorsalX||-.45)*.9+bendY(a,(1-(o.dorsalX||-.45))/2)}
+      flips.forEach((p,i)=>{p.rotation.x=(i?-1:1)*Math.sin(a+.8)*.12;p.rotation.z=Math.sin(a+.8)*.08});body.rotation.z=Math.sin(a+1.4)*.035};
+    return g}
+  /* 상어: 매끈한 유선형 + 큼직하고 순한 눈, 작은 미소 (귀엽게) */
+  function makeCuteShark(){return makeFish2({h:.27,tn:.24,snout:.72,tm:.42,stalk:.13,wr:.82,base:'#8797a2',back:'#5b6c78',belly:'#f4f7f8',scales:false,rough:.42,
+    fin:'#5b6c78',tail:'shark',tailH:.42,tailL:.42,amp:.16,waves:.5,eye:.075,eyeX:.62,blush:true,
+    dorsals:[[.2,.34,.4],[-.5,.14,.12]],anal:[-.55,.12,.08],
+    extra:(b,topAt,add)=>{
+      // 아가미 선
+      const gm=new THREE.MeshStandardMaterial({color:0x4a5862,roughness:.6});[1,-1].forEach(s=>{for(let i=0;i<4;i++){const c=new THREE.Mesh(new THREE.TorusGeometry(.07,.006,4,10,Math.PI*.7),gm);c.position.set(.4-i*.035,-.03,s*topAt(.4)*.8);c.rotation.set(0,s>0?0:Math.PI,Math.PI*.6);b.add(c)}});
+      // 큰 가슴지느러미
+      [1,-1].forEach(s=>{const m=new THREE.Mesh(finGeo([[0,0],[-.1,-.05,-.3,-.26],[-.25,-.28],[-.12,-.1],[-.12,0]],.02),new THREE.MeshStandardMaterial({color:0x667782,roughness:.45,side:THREE.DoubleSide}));m.position.set(.36,-.15,s*.13);m.rotation.x=s*1.0;add(m,.36)});
+      // 위쪽이 긴 꼬리로 보이게 위로 살짝 들어올림
+    }})}
+  // 종류별 설정 (실제 생김새를 따르되 둥글고 귀엽게)
+  const F=makeFish2;
+  B.rockfish=()=>F({h:.34,tn:.36,snout:.5,tm:.55,stalk:.22,wr:.5,base:'#555d52',back:'#2d332e',belly:'#a2a896',spots:['rgba(24,28,24,.75)',40,7,true],dorsals:[[.42,.95,.3,true]],tail:'round',tailH:.42,fin:'#30362f',eye:.12,amp:.1});
+  B.stripedbeak=()=>F({h:.5,tn:.3,snout:.6,tm:.5,stalk:.16,wr:.36,base:'#c3cbd0',back:'#8f9aa2',belly:'#f2f4f2',bands:[[.08,.14,'#17191c'],[.24,.31,'#17191c'],[.41,.48,'#17191c'],[.58,.65,'#17191c'],[.74,.8,'#17191c']],dorsals:[[.3,1.05,.34]],anal:[-.2,.5,.26],tail:'truncate',tailH:.48,fin:'#2a3036',eye:.12,
+    extra:b=>{const bk=new THREE.Mesh(SG,M(0xe4e7e3,{roughness:.3}));bk.scale.set(.06,.05,.06);bk.position.set(1.0,-.04,0);b.add(bk)}});
+  B.redbream=()=>F({h:.44,tn:.3,snout:.58,tm:.48,stalk:.15,wr:.38,base:'#ee8597',back:'#d6566f',belly:'#fde0dc',spots:['#5ec6ff',60,2.4],dorsals:[[.32,1.0,.32,true]],anal:[-.22,.45,.22],tail:'fork',tailH:.55,fin:'#ea8a98',eye:.12});
+  B.blackbream=()=>F({h:.42,tn:.3,snout:.58,tm:.48,stalk:.15,wr:.38,base:'#7f8b94',back:'#3b4650',belly:'#dde2e5',thin:'rgba(40,46,52,.3)',thinN:6,dorsals:[[.32,1.0,.32,true]],anal:[-.22,.45,.22],tail:'fork',tailH:.55,fin:'#303a44',eye:.12});
+  B.greenling=()=>F({h:.27,tn:.34,snout:.6,tm:.55,stalk:.2,wr:.55,base:'#9d8a55',back:'#5f4e28',belly:'#e6dcb4',spots:['rgba(62,50,24,.8)',30,9],dorsals:[[.5,1.3,.2]],anal:[-.05,.8,.15],tail:'round',tailH:.36,fin:'#6e5a2c',eye:.1});
+  B.mackerel=()=>F({h:.22,tn:.36,snout:.62,tm:.5,stalk:.08,wr:.62,base:'#86b8c9',back:'#2c6f86',belly:'#f0f6f8',wavy:'#14465a',dorsals:[[.25,.3,.16],[-.35,.18,.1]],anal:[-.38,.16,.08],tail:'fork',tailH:.4,fin:'#3d7d92',eye:.07,amp:.11,blush:false});
+  B.small=()=>F({h:.28,tn:.34,snout:.6,tm:.5,stalk:.12,wr:.48,base:'#bcd8e3',back:'#5f90a8',belly:'#f4f9fb',dorsals:[[.2,.35,.18]],tail:'fork',tailH:.4,fin:'#7aa7ba',eye:.09});
+  B.clown=()=>F({h:.38,tn:.36,snout:.55,tm:.55,stalk:.24,wr:.5,base:'#ff8a1f',back:'#f2711a',belly:'#ffb066',bands:[[.2,.29,'#ffffff'],[.49,.57,'#ffffff'],[.83,.89,'#ffffff']],dorsals:[[.3,.85,.24]],tail:'round',tailH:.42,tailCol:'#ff8a1f',fin:'#ff8a1f',eye:.11});
+  ['ffb86b','7fd1ff','ffe17a','ff8fb1','9df5c4'].forEach(c=>{B['s_'+c]=()=>F({h:.3,tn:.34,snout:.6,tm:.5,stalk:.12,wr:.48,base:'#'+c,back:'#'+c,belly:'#ffffff',dorsals:[[.2,.35,.18]],tail:'fork',tailH:.42,fin:'#'+c,eye:.095})});
+  B.bluetang=()=>F({h:.48,tn:.3,snout:.5,tm:.52,stalk:.2,wr:.32,base:'#2f6ae0',back:'#1f48b0',belly:'#5f95f0',patch:'#0d1838',dorsals:[[.35,1.15,.22]],anal:[-.1,.75,.2],tail:'lunate',tailH:.5,tailCol:'#f6cc22',fin:'#1d3ea0',eye:.12});
+  B.yellowtang=()=>F({h:.62,tn:.36,snout:.42,tm:.5,stalk:.22,wr:.28,base:'#ffdd2e',back:'#f2c418',belly:'#fff07a',dorsals:[[.35,1.1,.32]],anal:[-.05,.75,.3],tail:'truncate',tailH:.5,fin:'#f5cf1e',eye:.12,
+    extra:b=>{const sn=new THREE.Mesh(SG,M(0xf2c418));sn.scale.set(.12,.06,.06);sn.position.set(1.02,-.05,0);b.add(sn)}});
+  B.idol=()=>F({h:.66,tn:.34,snout:.42,tm:.48,stalk:.18,wr:.26,base:'#f5f2e6',back:'#e9e4d2',belly:'#ffffff',bands:[[.2,.34,'#121418'],[.46,.6,'#f2c623'],[.6,.75,'#121418']],dorsals:[[.15,.5,1.1]],anal:[-.1,.5,.36],tail:'round',tailH:.42,tailCol:'#121418',fin:'#121418',eye:.11,
+    extra:b=>{const sn=new THREE.Mesh(SG,M(0xe8b07a));sn.scale.set(.1,.05,.05);sn.position.set(1.02,-.05,0);b.add(sn)}});
+  B.angel=()=>F({h:.55,tn:.32,snout:.45,tm:.52,stalk:.2,wr:.3,base:'#1c47ad',back:'#122e7a',belly:'#2d5fd0',thin:'#f7d64a',thinN:9,dorsals:[[.3,1.1,.3]],anal:[-.1,.75,.28],tail:'round',tailH:.48,tailCol:'#f2b81f',fin:'#163a8f',eye:.11});
+  B.butterfly=()=>F({h:.55,tn:.34,snout:.4,tm:.52,stalk:.2,wr:.28,base:'#ffe14a',back:'#f2c62a',belly:'#fff4a0',eyebar:'#14161a',eyespot:true,dorsals:[[.3,1.1,.28,true]],anal:[-.1,.7,.26],tail:'round',tailH:.45,fin:'#f0c62a',eye:.1,
+    extra:b=>{const sn=new THREE.Mesh(SG,M(0xf2c62a));sn.scale.set(.12,.05,.05);sn.position.set(1.04,-.02,0);b.add(sn)}});
+  B.shark=makeCuteShark;
+  const W2=makeWhale2;
+  B.bluewhale=()=>W2({h:.2,tn:.26,snout:.5,tm:.5,stalk:.15,wr:.95,base:'#6f94c4',back:'#4a72a8',belly:'#dbe8f5',mottle:true,pleats:'rgba(90,120,160,.5)',dorsal:[[0,0],[-.06,.08],[-.12,0]],dorsalX:-.55,flipX:.3,flipL:.22,eye:.045,flukeK:.9});
+  B.whale=B.bluewhale;
+  B.humpback=()=>W2({h:.26,tn:.3,snout:.42,tm:.45,stalk:.15,wr:.95,base:'#56636c',back:'#323e46',belly:'#d3dadd',pleats:'rgba(220,226,228,.6)',dorsal:[[0,0],[-.05,.07],[-.14,0]],dorsalX:-.45,flipX:.32,flipL:.68,flipCol:'#eef2f2',knobs:true,eye:.05,
+    extra:(b,topAt)=>{const km=M(0x2b353c);for(let i=0;i<7;i++){const k=new THREE.Mesh(SG,km);k.scale.setScalar(.022);k.position.set(.62+i*.05,topAt(.62+i*.05)*.92,(i%2?.04:-.04));b.add(k)}}});
+  B.orca=()=>W2({h:.27,tn:.26,snout:.52,tm:.46,stalk:.16,wr:.92,base:'#16191c',back:'#0e1114',belly:'#16191c',orca:true,dorsal:[[0,0],[-.03,.2,-.1,.46],[-.12,.45],[-.12,.2,-.2,0]],dorsalX:-.02,flipX:.4,flipL:.25,eye:.05,mouth:0x0a0c0e});
+
   // 생물 종류 → 스프라이트, 화면 크기(기존 그림 단위), 재생 속도
-  SPR.map={shark:['shark',170,.42],whale:['bluewhale',340,.25],bluewhale:['bluewhale',290,.28],humpback:['humpback',320,.25],orca:['orca',220,.4],manta:['manta',150,.45],turtle:['turtle',100,.45],
+  SPR.map={shark:['shark',175,.32],whale:['bluewhale',340,.16],bluewhale:['bluewhale',300,.18],humpback:['humpback',320,.16],orca:['orca',230,.3],manta:['manta',150,.45],turtle:['turtle',100,.45],
     octopus:['octopus',62,.5],squid:['squid',100,.6],shrimp:['shrimp',60,1.2],seahorse:['seahorse',66,.8],puffer:['puffer',48,.9],crab:['crab',60,.9],star:['star',42,.3],jelly:['jelly',58,.5],
     flatfish:['flatfish',96,.5],greenling:['greenling',92,1],rockfish:['rockfish',100,.9],stripedbeak:['stripedbeak',100,1],redbream:['redbream',100,1],blackbream:['blackbream',100,1],
     bluetang:['bluetang',62,1.3],yellowtang:['yellowtang',62,1.3],idol:['idol',62,1.2],angel:['angel',66,1.1],butterfly:['butterfly',60,1.3]};
@@ -1820,7 +1958,9 @@ const SPR={ready:{},queue:[],built:false};
     try{const model=B[key]();model.rotation.y=-.42;scene.add(model);cam.position.set(0,1.1,5);cam.lookAt(0,0,0);
       const atlas=document.createElement('canvas');atlas.width=CELL*FR;atlas.height=CELL;const ac=atlas.getContext('2d');
       for(let f=0;f<FR;f++){model.userData.anim&&model.userData.anim(f/FR);rd.setClearColor(0x000000,0);rd.clear();rd.render(scene,cam);ac.drawImage(GL.canvas,0,0,GL.R,GL.R,f*CELL,0,CELL,CELL)}
-      scene.remove(model);SPR.ready[key]=atlas}catch(e){}};
+      scene.remove(model);SPR.ready[key]=atlas}catch(e){SPR.err=(SPR.err||[]).concat(key+': '+e.message);scene.children.slice().forEach(ch=>{if(ch.type==='Group')scene.remove(ch)})}};
+  SPR.B=B;SPR.F=makeFish2;
+  SPR.debug=(key,f,opt)=>{const model=typeof key==='function'?key():B[key](opt);model.rotation.y=-.42;scene.add(model);model.userData.anim&&model.userData.anim(f||0);rd.render(scene,cam);scene.remove(model);return GL.canvas.toDataURL()};
 })();
 function buildSprites(budgetMs){if(!SPR.queue||!SPR.queue.length||!SPR.buildOne)return;const t0=performance.now();while(SPR.queue.length&&performance.now()-t0<budgetMs)SPR.buildOne()}
 // 스프라이트 그리기: 현재 좌표계 원점 중심, 오른쪽을 봄. key가 없으면 false

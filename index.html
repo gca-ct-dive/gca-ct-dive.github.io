@@ -333,6 +333,7 @@ const weeds=[...Array(32)].map((_,i)=>({x:i*WORLD_W/31+Math.random()*30,h:80+Mat
 
 /* ── 바다 생물: z가 작을수록 멀리 있어 작고 흐리고 천천히 따라옴 ── */
 const creatures=[];
+const BIGW=/^(whale|bluewhale|humpback|orca)$/;
 function spawn(type,n,z,o={}){n=Math.max(1,Math.round(n*DENS));for(let i=0;i<n;i++)creatures.push({type,z:typeof z==='function'?z():z,
   x:rnd(-300,WORLD_W+300),y:rnd(o.y0??SURFACE+120,o.y1??WORLD_H-160),v:rnd(o.v0,o.v1)*(Math.random()<.5?-1:1),
   s:rnd(o.s0??1,o.s1??1),ph:Math.random()*6.28,n:o.n?Math.round(rnd(o.n[0],o.n[1])):0,col:o.cols?o.cols[i%o.cols.length]:null,
@@ -663,7 +664,7 @@ function update(dt){
   COMPANIES.forEach(c=>{c.ph+=dt*.8;c.x=c.bx+Math.sin(c.ph*.7)*24;c.y=c.by+Math.sin(c.ph)*16});
   updateBukang(dt);update3(dt);updateMulti(dt);
   updateDepth(dt);
-  creatures.forEach(c=>{c.ph+=dt;c.x+=c.v*dt;
+  creatures.forEach(c=>{c.ph+=dt;c.x+=c.v*dt;if(BIGW.test(c.type)){c.x+=c.v*dt*2.2;c.y+=Math.cos(c.ph*.3+c.s*5)*9*dt}
     if(c.type==='jelly'){c.y+=Math.sin(c.ph*.8)*10*dt-4*dt;if(c.y<SURFACE+80)c.y=WORLD_H-200}
     if(c.type==='octopus'||c.type==='seahorse')c.y+=Math.sin(c.ph*1.1)*12*dt;
     if(c.type==='squid')c.x+=c.v*dt*2.5*Math.pow(Math.max(0,Math.sin(c.ph*1.6)),4);
@@ -1185,7 +1186,9 @@ function update3(dt){
     if(bottom>limit)cam3.y+=(bottom-limit)/P.s*Math.min(1,dt*8);else if(cam3.y>CAMY+d.Y*.3)cam3.y-=Math.min(cam3.y-(CAMY+d.Y*.3),(limit-bottom)/P.s*Math.min(1,dt*2))}}
   if(Math.hypot(diver.vx,diver.vy)<12){idle3+=dt}else idle3=0;faceWant=diver.vy<-25?1:diver.vy>25?0:(idle3>1.2?1:faceWant);face3+=Math.max(-dt*2.4,Math.min(dt*2.4,faceWant-face3));
   dust3.forEach(p=>{p.X+=p.vx*dt;p.Y+=p.vy*dt;if(p.Y>FLOOR3)p.Y=-700});
-  creatures.forEach(c=>{c.spd=.7+.45*Math.max(0,Math.sin(c.ph*.55+c.s*7));c.X3+=c.v*dt*1.3*c.spd;if(!/crab|star|flatfish|whale|humpback|orca|bluewhale/.test(c.type))c.Y3+=Math.sin(c.ph*.45+c.s*3)*7*dt;if(c.X3>2200)c.X3=-2200;if(c.X3<-2200)c.X3=2200;
+  creatures.forEach(c=>{c.spd=.7+.45*Math.max(0,Math.sin(c.ph*.55+c.s*7));c.X3+=c.v*dt*1.3*c.spd;
+    if(BIGW.test(c.type)){const vx=c.v*1.3*c.spd*4.2,vy=Math.cos(c.ph*.3+c.s*5)*26;c.X3+=c.v*dt*1.3*c.spd*3.2;c.Y3=Math.max(-700,Math.min(FLOOR3-260,c.Y3+vy*dt));c.tl=Math.atan2(vy,Math.abs(vx))*.8}
+    if(!/crab|star|flatfish|whale|humpback|orca|bluewhale/.test(c.type))c.Y3+=Math.sin(c.ph*.45+c.s*3)*7*dt;if(c.X3>2200)c.X3=-2200;if(c.X3<-2200)c.X3=2200;
     if(c.type==='jelly'||c.type==='octopus'||c.type==='seahorse')c.Y3+=Math.sin(c.ph*.8)*10*dt});
   {const br=(diver.t%3.6)/3.6;if(phase==='swim'&&br>.62&&br<.82&&Math.random()<dt*28)bub3.push({X:d.X+rnd(-8,8)+12,Y:d.Y-46,Z:d.Z+rnd(-6,6)+20,r:rnd(2,6),v:rnd(60,110)})}
   bub3.forEach(b=>{b.Y-=b.v*dt;b.X+=Math.sin(b.Y*.05)*.4});for(let i=bub3.length-1;i>=0;i--)if(bub3[i].Y<d.Y-700)bub3.splice(i,1);
@@ -1294,7 +1297,7 @@ function draw3D(t){
     const Z=(z.top+ZONE_HEAD-150)*ZS,P=project(z.gx,GATE_CY,Z);if(P&&P.d<4200)list.push({d:P.d,f:()=>drawGate(z,zi,P,Z)})});
   scen3.forEach(it=>{const P=project(it.X,FLOOR3,it.Z);if(!P||P.d>3800)return;if(P.x<-it.h*P.s-200||P.x>W+it.h*P.s+200)return;list.push({d:P.d,f:()=>{ctx.globalAlpha=fogA(P.d)*.95*nearA(P.d);at(P,P.s);drawScenItem(it,t)}})});
   creatures.forEach(c=>{const P=project(c.X3,c.Y3,c.Z3);if(!P||P.d>3600||P.x<-400||P.x>W+400)return;
-    list.push({d:P.d,f:()=>{ctx.globalAlpha=fogA(P.d)*.92*nearA(P.d);const sc=P.s*c.s*(c.type==='whale'?2.4:c.type==='humpback'?2.2:c.type==='orca'?1.5:1);at(P,sc,c.v>0?1:-1);
+    list.push({d:P.d,f:()=>{ctx.globalAlpha=fogA(P.d)*.92*nearA(P.d);const sc=P.s*c.s*(c.type==='whale'?2.4:c.type==='humpback'?2.2:c.type==='orca'?1.5:1);at(P,sc,c.v>0?1:-1);if(c.tl)ctx.rotate(c.tl);
       ctx.fillStyle=c.col&&c.z>.95?c.col:'rgb(30,72,94)';drawCreatureBody(c,t)}})});
   COMPANIES.forEach(c=>{c.p3=null;const P=project(c.x-WORLD_W/2,c.y3+(c.y-c.by)*1.6,c.by*ZS);if(!P||P.d>4200)return;
     const R=c.r*P.s;if(P.x<-R*3||P.x>W+R*3||P.y<-R*4||P.y>H+R*3)return;c.p3={x:P.x,y:P.y,R,d:P.d};

@@ -420,10 +420,15 @@ function drawDiverAny(){
   const d=diver,t=d.t;
   ctx.save();ctx.translate(d.x,d.y);
   if(phase==='boat'){ctx.fillStyle='rgba(60,40,20,.28)';ctx.beginPath();ctx.ellipse(-8,4,26,5,0,0,6.28);ctx.fill()}
-  if(phase==='boat'||phase==='roll'){ctx.rotate(phase==='roll'?Math.pow(Math.min(1,rollT/1.1),1.6)*Math.PI:boatTilt());if(GL.ok){ctx.translate(-4,-36);blitDiver({pose:'sit',pitch:-Math.PI/2,yaw:-.38,elev:.45,t,entry:phase==='roll'?Math.min(1,rollT/1.1):0},150)}else{ctx.scale(1.15,1.15);drawSitter(t)}}
+  if(GL.ok&&(phase==='roll'||phase==='under')){
+    // 입수 전체 시간 τ: 뒤로 넘어가며(앉은 자세) → 물에 닿을 즈음부터 몸을 펴고 옆으로 틀며(헤엄 자세) → 머리부터 내려가다 수평으로
+    const tau=phase==='roll'?rollT:1.1+underT,p=Math.min(1,rollT/1.1),sm=x=>{x=Math.max(0,Math.min(1,x));return x*x*(3-2*x)};
+    const k=sm((tau-.7)/.9),Rs=Math.pow(p,1.6)*Math.PI,q=phase==='under'?Math.min(1,underT/UNDER_T):0,e=sm(q),Rw=(1-e)*Math.PI/2+e*.35;
+    ctx.rotate(Rs*(1-k)+Rw*k);ctx.translate(-4*(1-k),-36*(1-k));
+    blitDiver({pose:'swim',yaw:Math.PI/2,pitch:0,elev:.8,kick:t*9,t,moving:true,mix:{a:{pose:'sit',pitch:-Math.PI/2,yaw:-.38,elev:.45,t,entry:1},k}},150)}
+  else if(phase==='boat'||phase==='roll'){ctx.rotate(phase==='roll'?Math.pow(Math.min(1,rollT/1.1),1.6)*Math.PI:boatTilt());if(GL.ok){ctx.translate(-4,-36);blitDiver({pose:'sit',pitch:-Math.PI/2,yaw:-.38,elev:.45,t,entry:phase==='roll'?Math.min(1,rollT/1.1):0},150)}else{ctx.scale(1.15,1.15);drawSitter(t)}}
   else{const moving=Math.hypot(d.vx,d.vy)>20,kick=Math.sin(t*(moving?9:3));
     let rot=Math.atan2(d.vy,Math.abs(d.vx)+30)*.6;if(phase==='under'){const q=Math.min(1,underT/UNDER_T),e=q*q*(3-2*q);rot=(1-e)*Math.PI/2+e*.35}
-    if(GL.ok&&phase==='under'&&underT<.32){const a=1-underT/.32;ctx.save();ctx.globalAlpha=a;ctx.rotate(Math.PI);ctx.translate(-4,-36);blitDiver({pose:'sit',pitch:-Math.PI/2,yaw:-.38,elev:.45,t,entry:1},150);ctx.restore();ctx.globalAlpha=1-a}
     if(GL.ok){const fs=d.faceS??d.face;ctx.rotate(rot*fs);blitDiver({pose:'swim',yaw:Math.PI/2*fs,pitch:0,roll:-(d.face-fs)*.35,elev:.8,kick:t*(moving||phase==='under'?9:3),t,moving:moving||phase==='under'},150);ctx.globalAlpha=1}else{ctx.scale(d.face*1.15,1.15);ctx.rotate(rot);drawSwimmer(t,kick)}}
   ctx.restore();
 }
@@ -1523,7 +1528,15 @@ const GL={ok:false};
     {const belt=new THREE.Mesh(new THREE.TorusGeometry(.4,.05,8,28),M(0x2a2f33));belt.rotation.x=Math.PI/2;belt.scale.set(1.05,1.45,1);belt.position.set(0,-.06,-.32);body.add(belt);sph(M(0xb8c2c8,{metalness:.7,roughness:.25}),0,-.4,-.32,.08,.05,.06);
      [-1,1].forEach(s=>{const st=new THREE.Mesh(new THREE.TorusGeometry(.32,.035,6,20,Math.PI),M(0x2a2f33));st.position.set(s*.2,.2,.1);st.rotation.set(0,Math.PI/2,0);body.add(st)});
      sph(M(0xffd84a),-.3,-.22,.35,.07,.06,.06)}
+    const JOINTS=()=>[yawG,pitchG,rollG,head,body,...arms,...elbows,...legs.flatMap(L=>[L.hip,L.knee,L.foot])];
+    /* 두 자세를 섞어 그림(o.mix={a:앞 자세, k:0~1}) — 입수할 때 앉은 자세에서 헤엄 자세로 이어지게 */
     GL.render=o=>{
+      if(o.mix){GL.pose(o.mix.a);const A=JOINTS().map(j=>[j.rotation.x,j.rotation.y,j.rotation.z,j.position.y]);GL.pose(o);const k=o.mix.k;
+        JOINTS().forEach((j,i)=>{const a=A[i];j.rotation.set(a[0]+(j.rotation.x-a[0])*k,a[1]+(j.rotation.y-a[1])*k,a[2]+(j.rotation.z-a[2])*k);j.position.y=a[3]+(j.position.y-a[3])*k});
+        const ea=o.mix.a.elev==null?1.55:o.mix.a.elev,eb=o.elev==null?1.55:o.elev;cam.position.set(0,ea+(eb-ea)*k,7.6)}
+      else{GL.pose(o);cam.position.set(0,o.elev==null?1.55:o.elev,7.6)}
+      cam.lookAt(0,0,0);rd.render(scene,cam)};
+    GL.pose=o=>{
       setC('suit',o.suit||SUIT);setC('vest',o.vest||VEST);setC('tank',o.tank||TANK);
       yawG.rotation.y=o.yaw||0;pitchG.rotation.x=o.pitch||0;rollG.rotation.z=o.roll||0;
       const k=o.kick||0;
@@ -1546,9 +1559,8 @@ const GL={ok:false};
         arms.forEach((a,i)=>{const s=i?1:-1,mv=o.moving?1:.45,c=o.t*(o.moving?2.6:1.5),sw=.5+.5*Math.sin(c),scull=(o.roll||0)*s<0?Math.sin(o.t*5)*.3:0;
           a.rotation.set(-.2+Math.sin(c+1.2)*.28*mv,s*(.45+sw*.85*mv+(1-mv)*.5+scull),-s*(.25+Math.sin(c)*.15*mv))});
         body.position.y=Math.sin(o.t*1.75)*.05;rollG.rotation.z=(o.roll||0)+Math.sin(k)*.045;
-        head.rotation.set(-.12-(o.look>.7?.12*(o.look-.7)/.3:0)+(o.hp||0),(o.turn||0),0)}
-      cam.position.set(0,o.elev==null?1.55:o.elev,7.6);cam.lookAt(0,0,0);
-      rd.render(scene,cam);
+        head.rotation.set(-.12-(o.look>.7?.12*(o.look-.7)/.3:0)+(o.hp||0),(o.turn||0),0);body.position.y=body.position.y}
+      if(o.pose==='sit')body.position.y=0;
     };
   }catch(e){GL.ok=false}
 })();

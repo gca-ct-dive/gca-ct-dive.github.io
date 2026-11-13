@@ -504,7 +504,7 @@ function stepPhase(dt){
     if(p>=1){phase='under';underT=0}return true}
   if(phase==='under'){underT+=dt;const q=Math.min(1,underT/UNDER_T);diver.x+=(30+40*q)*dt;diver.y+=(150*(1-q)+20)*dt;diver.face=1;diver.faceS=1;
     if(Math.random()<dt*14)bubbles.push({x:diver.x+rnd(-10,10),y:diver.y-14,r:rnd(2,5),v:rnd(50,90)});
-    if(q>=1){phase='swim';mode3=true;fade3=1;cam3.init=false;$('fpvBtn').hidden=false;diver.vx=0;diver.vy=90;yaw3=Math.PI;side3=1;lean3=0;bank3=0;idle3=0;dive3T=0;target=pending||{x:diver.x,y:SURFACE+300};fast=!!pending;pending=null;
+    if(q>=1){phase='swim';mode3=true;fade3=1;cam3.init=false;$('fpvBtn').hidden=false;diver.vx=0;diver.vy=90;yaw3=Math.PI;yawV3=0;up3=0;side3=1;lean3=0;bank3=0;idle3=0;dive3T=0;target=pending||{x:diver.x,y:SURFACE+300};fast=!!pending;pending=null;
       $('hint').textContent='패드를 밀거나 화면을 눌러 헤엄쳐요';$('hint').style.opacity=1;setOverview.h=setTimeout(()=>$('hint').style.opacity=0,9000)}return true}
   return false;
 }
@@ -1192,9 +1192,12 @@ function update3(dt){
    side3+=(sT-side3)*Math.min(1,dt*2.6);lean3+=(Math.max(-.35,Math.min(.35,vx*.0016))-lean3)*Math.min(1,dt*3.5);
    {const sp=Math.hypot(diver.vx,diver.vy);let tg=null;
     dive3T+=dt;if(sp>30)tg=Math.atan2(diver.vx,-diver.vy*1.15);else if(idle3>2)tg=0;const tr=sp>30?3.6:1.7;
-    if(tg!=null){let df=tg-yaw3;df=Math.atan2(Math.sin(df),Math.cos(df));if(Math.abs(Math.abs(df)-Math.PI)<.05)df=Math.PI*(Math.sign(side3)||1)*.98;
-      yaw3+=Math.max(-dt*tr,Math.min(dt*tr,df*Math.min(1,dt*3.2)/Math.max(dt,1e-3)*dt))}
-    yaw3=Math.atan2(Math.sin(yaw3),Math.cos(yaw3));face3=(1+Math.cos(yaw3))/2}
+    /* 회전은 스프링처럼: 천천히 돌기 시작해서 부드럽게 멈춤 */
+    let df=0;if(tg!=null){df=tg-yaw3;df=Math.atan2(Math.sin(df),Math.cos(df));if(Math.abs(Math.abs(df)-Math.PI)<.05)df=Math.PI*(Math.sign(side3)||1)*.98}
+    const wn=sp>30?4.2:2.3;yawV3+=(df*wn*wn-yawV3*2*wn)*Math.min(dt,.05);yawV3=Math.max(-tr,Math.min(tr,yawV3));if(tg==null)yawV3*=Math.pow(.02,dt);
+    yaw3+=yawV3*dt;yaw3=Math.atan2(Math.sin(yaw3),Math.cos(yaw3));face3=(1+Math.cos(yaw3))/2;
+    /* 멈춰서 돌 때는 몸을 세워(서 있는 자세로) 제자리에서 돌기 */
+    const uT=sp<30&&dive3T>1.8?Math.min(1,.28+.75*Math.abs(Math.sin(yaw3))+Math.min(.4,Math.abs(yawV3)*.25)):0;up3+=(uT-up3)*Math.min(1,dt*(uT>up3?3.2:2.2))}
    bank3+=(Math.max(-.28,Math.min(.28,(side3-ps)/Math.max(dt,1e-3)*.12))-bank3)*Math.min(1,dt*4)}
   dust3.forEach(p=>{p.X+=p.vx*dt;p.Y+=p.vy*dt;if(p.Y>FLOOR3)p.Y=-700});
   creatures.forEach(c=>{c.spd=.7+.45*Math.max(0,Math.sin(c.ph*.55+c.s*7));c.X3+=c.v*dt*1.3*c.spd;
@@ -1265,10 +1268,10 @@ function drawDiverFront(t,kick,lean){
   ball(6,-15,3.6,'#5b6b78');ctx.strokeStyle='#33424e';ctx.lineWidth=1.8;ctx.beginPath();ctx.moveTo(9,-14);ctx.quadraticCurveTo(18,-12,17,-4);ctx.stroke();
 }
 /* 앞뒤 전환: 뒷모습 → 옆모습 → 앞모습으로 빙글 */
-let face3=0,faceWant=0,idle3=0,side3=1,lean3=0,bank3=0,yaw3=Math.PI,dive3T=9;
+let face3=0,faceWant=0,idle3=0,side3=1,lean3=0,bank3=0,yaw3=Math.PI,dive3T=9,yawV3=0,up3=0;
 function drawDiver3(t,kick,lean,fc){
   const f=fc==null?face3:fc;
-  if(GL.ok){const me=fc==null,side=me?side3:(lean<-.02?-1:1),lz=me?lean3:lean,w=Math.max(0,1-f*2),turn=side*(.42+Math.sin(t*.7)*.12)*w;blitDiver({pose:'swim',yaw:(me?yaw3:Math.PI*(1-f))-side*.42*w,pitch:-.12+(f>.7?.1*(f-.7)/.3:0)+(me&&dive3T<1.8?1.0*Math.pow(1-dive3T/1.8,1.5):0),roll:-lz-(me?bank3:0),kick,t,moving:Math.abs(lean)>.01||kick>t*5,turn,look:f},150);return}
+  if(GL.ok){const me=fc==null,side=me?side3:(lean<-.02?-1:1),lz=me?lean3:lean,w=Math.max(0,1-f*2),turn=side*(.42+Math.sin(t*.7)*.12)*w;blitDiver({pose:'swim',yaw:(me?yaw3:Math.PI*(1-f))-side*.42*w,pitch:-.12+(f>.7?.1*(f-.7)/.3:0)+(me&&dive3T<1.8?1.0*Math.pow(1-dive3T/1.8,1.5):0)-(me?up3*1.05:0),hp:me?up3*.75:0,roll:-lz-(me?bank3:0),kick,t,moving:Math.abs(lean)>.01||kick>t*5,turn,look:f},150);return}
   const a=f*Math.PI,c=Math.cos(a);
   if(c>.34){ctx.scale(Math.max(.35,c),1);drawDiverBack(t,kick,lean)}
   else if(c<-.34){ctx.scale(Math.max(.35,-c),1);drawDiverFront(t,kick,lean)}
@@ -1543,7 +1546,7 @@ const GL={ok:false};
         arms.forEach((a,i)=>{const s=i?1:-1,mv=o.moving?1:.45,c=o.t*(o.moving?2.6:1.5),sw=.5+.5*Math.sin(c),scull=(o.roll||0)*s<0?Math.sin(o.t*5)*.3:0;
           a.rotation.set(-.2+Math.sin(c+1.2)*.28*mv,s*(.45+sw*.85*mv+(1-mv)*.5+scull),-s*(.25+Math.sin(c)*.15*mv))});
         body.position.y=Math.sin(o.t*1.75)*.05;rollG.rotation.z=(o.roll||0)+Math.sin(k)*.045;
-        head.rotation.set(-.12-(o.look>.7?.12*(o.look-.7)/.3:0),(o.turn||0),0)}
+        head.rotation.set(-.12-(o.look>.7?.12*(o.look-.7)/.3:0)+(o.hp||0),(o.turn||0),0)}
       cam.position.set(0,o.elev==null?1.55:o.elev,7.6);cam.lookAt(0,0,0);
       rd.render(scene,cam);
     };

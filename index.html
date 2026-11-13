@@ -423,7 +423,7 @@ function drawDiverAny(){
   if(phase==='boat'||phase==='roll'){ctx.rotate(phase==='roll'?Math.min(1,rollT/1.1)*Math.PI*1.2:boatTilt());if(GL.ok){ctx.translate(-4,-36);blitDiver({pose:'sit',pitch:-Math.PI/2,yaw:-.38,elev:.45,t,entry:phase==='roll'?Math.min(1,rollT/1.1):0},150)}else{ctx.scale(1.15,1.15);drawSitter(t)}}
   else{const moving=Math.hypot(d.vx,d.vy)>20,kick=Math.sin(t*(moving?9:3));
     let rot=Math.atan2(d.vy,Math.abs(d.vx)+30)*.6;if(phase==='under')rot=(1-Math.min(1,underT/.9))*1.7;
-    if(GL.ok){ctx.scale(d.face,1);ctx.rotate(rot);blitDiver({pose:'swim',yaw:Math.PI/2,pitch:0,elev:.8,kick:t*(moving?9:3),t},150)}else{ctx.scale(d.face*1.15,1.15);ctx.rotate(rot);drawSwimmer(t,kick)}}
+    if(GL.ok){const fs=d.faceS??d.face;ctx.rotate(rot*fs);blitDiver({pose:'swim',yaw:Math.PI/2*fs,pitch:0,roll:-(d.face-fs)*.35,elev:.8,kick:t*(moving?9:3),t},150)}else{ctx.scale(d.face*1.15,1.15);ctx.rotate(rot);drawSwimmer(t,kick)}}
   ctx.restore();
 }
 const boatBob=()=>Math.sin(diver.t*1.6)*3, boatTilt=()=>Math.sin(diver.t*1.2)*.03;
@@ -658,6 +658,7 @@ function update(dt){
   diver.x=Math.max(40,Math.min(WORLD_W-40,diver.x+diver.vx*dt));
   diver.y=Math.max(mode3?SURFACE+150:SURFACE-24,Math.min(WORLD_H-130,diver.y+diver.vy*dt));
   if(Math.abs(diver.vx)>8)diver.face=diver.vx>0?1:-1;}
+  {if(diver.faceS==null)diver.faceS=diver.face;diver.faceS+=(diver.face-diver.faceS)*Math.min(1,dt*4.5)}
   if(diver.y>SURFACE&&Math.random()<dt*2.2)bubbles.push({x:diver.x+diver.face*14,y:diver.y-18,r:2+Math.random()*3,v:40+Math.random()*30});
   bubbles.forEach(b=>{b.y-=b.v*dt;b.x+=Math.sin(b.y*.05)*.3});
   for(let i=bubbles.length-1;i>=0;i--)if(bubbles[i].y<SURFACE||bubbles[i].y<diver.y-900)bubbles.splice(i,1);
@@ -1185,6 +1186,14 @@ function update3(dt){
   if(!fpv){const P=project(d.X,d.Y,d.Z);if(P){const bottom=P.y+150*P.s*.6*.42,limit=padY()-44-14;
     if(bottom>limit)cam3.y+=(bottom-limit)/P.s*Math.min(1,dt*8);else if(cam3.y>CAMY+d.Y*.3)cam3.y-=Math.min(cam3.y-(CAMY+d.Y*.3),(limit-bottom)/P.s*Math.min(1,dt*2))}}
   if(Math.hypot(diver.vx,diver.vy)<12){idle3+=dt}else idle3=0;faceWant=diver.vy<-25?1:diver.vy>25?0:(idle3>1.2?1:faceWant);face3+=Math.max(-dt*2.4,Math.min(dt*2.4,faceWant-face3));
+  {const vx=diver.vx,sT=Math.abs(vx)>15?Math.sign(vx)*Math.min(1,.35+Math.abs(vx)/110):(Math.sign(side3)||1)*Math.max(.6,Math.abs(side3)),ps=side3;
+   side3+=(sT-side3)*Math.min(1,dt*2.6);lean3+=(Math.max(-.35,Math.min(.35,vx*.0016))-lean3)*Math.min(1,dt*3.5);
+   {const sp=Math.hypot(diver.vx,diver.vy);let tg=null;
+    if(sp>30)tg=Math.atan2(diver.vx,-diver.vy*1.15);else if(idle3>1.2)tg=0;
+    if(tg!=null){let df=tg-yaw3;df=Math.atan2(Math.sin(df),Math.cos(df));if(Math.abs(Math.abs(df)-Math.PI)<.05)df=Math.PI*(Math.sign(side3)||1)*.98;
+      yaw3+=Math.max(-dt*3.6,Math.min(dt*3.6,df*Math.min(1,dt*3.2)/Math.max(dt,1e-3)*dt))}
+    yaw3=Math.atan2(Math.sin(yaw3),Math.cos(yaw3));face3=(1+Math.cos(yaw3))/2}
+   bank3+=(Math.max(-.28,Math.min(.28,(side3-ps)/Math.max(dt,1e-3)*.12))-bank3)*Math.min(1,dt*4)}
   dust3.forEach(p=>{p.X+=p.vx*dt;p.Y+=p.vy*dt;if(p.Y>FLOOR3)p.Y=-700});
   creatures.forEach(c=>{c.spd=.7+.45*Math.max(0,Math.sin(c.ph*.55+c.s*7));c.X3+=c.v*dt*1.3*c.spd;
     if(BIGW.test(c.type)){const vx=c.v*1.3*c.spd*4.2,vy=Math.cos(c.ph*.3+c.s*5)*26;c.X3+=c.v*dt*1.3*c.spd*3.2;c.Y3=Math.max(-700,Math.min(FLOOR3-260,c.Y3+vy*dt));c.tl=Math.atan2(vy,Math.abs(vx))*.8}
@@ -1254,10 +1263,10 @@ function drawDiverFront(t,kick,lean){
   ball(6,-15,3.6,'#5b6b78');ctx.strokeStyle='#33424e';ctx.lineWidth=1.8;ctx.beginPath();ctx.moveTo(9,-14);ctx.quadraticCurveTo(18,-12,17,-4);ctx.stroke();
 }
 /* 앞뒤 전환: 뒷모습 → 옆모습 → 앞모습으로 빙글 */
-let face3=0,faceWant=0,idle3=0;
+let face3=0,faceWant=0,idle3=0,side3=1,lean3=0,bank3=0,yaw3=Math.PI;
 function drawDiver3(t,kick,lean,fc){
   const f=fc==null?face3:fc;
-  if(GL.ok){const side=lean<-.02?-1:1,turn=f<.5?side*(.42+Math.sin(t*.7)*.12):0;blitDiver({pose:'swim',yaw:Math.PI*(1-f)-(f<.5?side*.42*(1-f*2):0),pitch:-.12+(f>.7?.1*(f-.7)/.3:0),roll:-lean,kick,t,moving:Math.abs(lean)>.01||kick>t*5,turn,look:f},150);return}
+  if(GL.ok){const me=fc==null,side=me?side3:(lean<-.02?-1:1),lz=me?lean3:lean,w=Math.max(0,1-f*2),turn=side*(.42+Math.sin(t*.7)*.12)*w;blitDiver({pose:'swim',yaw:(me?yaw3:Math.PI*(1-f))-side*.42*w,pitch:-.12+(f>.7?.1*(f-.7)/.3:0),roll:-lz-(me?bank3:0),kick,t,moving:Math.abs(lean)>.01||kick>t*5,turn,look:f},150);return}
   const a=f*Math.PI,c=Math.cos(a);
   if(c>.34){ctx.scale(Math.max(.35,c),1);drawDiverBack(t,kick,lean)}
   else if(c<-.34){ctx.scale(Math.max(.35,-c),1);drawDiverFront(t,kick,lean)}

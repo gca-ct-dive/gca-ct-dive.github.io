@@ -1014,7 +1014,7 @@ function drawSay(c){if(!(c.say>0)||!c.hit)return;const h=c.hit,pop=Math.min(1,(3
   ctx.fillStyle='#fff';ctx.beginPath();ctx.roundRect(-mw/2,-mh,mw,mh,18);ctx.fill();ctx.beginPath();ctx.moveTo(-8,-2);ctx.lineTo(0,10);ctx.lineTo(8,-2);ctx.fill();
   ctx.textAlign='center';ctx.fillStyle='#06202e';ctx.fillText(c.msg,0,-mh/2+6);ctx.restore()}
 function drawCreatureBody(c,t){
-  {const m=sprFor(c.type);if(m&&SPR.ready[m[0]]){const tilt=/crab|star|flatfish|jelly|seahorse|octopus/.test(c.type)?0:Math.cos(c.ph*.45+c.s*3)*.09;ctx.rotate(-tilt);drawSpr(m[0],m[1],m[2]*(c.spd||1),t,c.ph);return}}
+  {const m=sprFor(c.type);if(m&&SPR.ready[m[0]]){const tilt=/crab|star|flatfish|jelly|seahorse|octopus/.test(c.type)||SAY_T.test(c.type)?0:Math.cos(c.ph*.45+c.s*3)*.09;ctx.rotate(-tilt);drawSpr(m[0],m[1],m[2]*(c.spd||1),t,c.ph);return}}
   if(TROP.has(c.type)){drawTropical(c.type,t,c.ph);return}
   if(c.type==='humpback'){drawHumpback(t,c.ph);return}
   if(c.type==='orca'){drawOrca(t,c.ph);return}
@@ -1232,6 +1232,8 @@ function update3(dt){
    bank3+=(Math.max(-.28,Math.min(.28,(side3-ps)/Math.max(dt,1e-3)*.12))-bank3)*Math.min(1,dt*4)}
   dust3.forEach(p=>{p.X+=p.vx*dt;p.Y+=p.vy*dt;if(p.Y>FLOOR3)p.Y=-700});
   creatures.forEach(c=>{c.spd=(.7+.45*Math.max(0,Math.sin(c.ph*.55+c.s*7)))*(c.say>0?.3:1);if(c.say>0)c.say-=dt;c.X3+=c.v*dt*1.3*c.spd;
+    if(SAY_T.test(c.type)&&c.beat!=null){const sg=Math.sin(c.beat*12.566-1.2);c.X3+=c.v*dt*1.3*c.spd*(c.type==='shark'?.35:1.2)*sg}
+    if(c.type==='shark'){const vy=Math.cos(c.ph*.22+c.s*4)*16;c.Y3=Math.max(-650,Math.min(FLOOR3-120,c.Y3+vy*dt));c.tl=Math.atan2(vy,Math.abs(c.v*1.3*c.spd))*.6}
     if(BIGW.test(c.type)){const vx=c.v*1.3*c.spd*4.2,vy=Math.cos(c.ph*.3+c.s*5)*26;c.X3+=c.v*dt*1.3*c.spd*3.2;c.Y3=Math.max(-700,Math.min(FLOOR3-260,c.Y3+vy*dt));c.tl=Math.atan2(vy,Math.abs(vx))*.8}
     if(!/crab|star|flatfish|whale|humpback|orca|bluewhale/.test(c.type))c.Y3+=Math.sin(c.ph*.45+c.s*3)*7*dt;if(c.X3>2200)c.X3=-2200;if(c.X3<-2200)c.X3=2200;
     if(c.type==='jelly'||c.type==='octopus'||c.type==='seahorse')c.Y3+=Math.sin(c.ph*.8)*10*dt});
@@ -1347,7 +1349,7 @@ function draw3D(t){
   scen3.forEach(it=>{const P=project(it.X,FLOOR3,it.Z);if(!P||P.d>3800)return;if(P.x<-it.h*P.s-200||P.x>W+it.h*P.s+200)return;list.push({d:P.d,f:()=>{ctx.globalAlpha=fogA(P.d)*.95*nearA(P.d);at(P,P.s);drawScenItem(it,t)}})});
   creatures.forEach(c=>{const P=project(c.X3,c.Y3,c.Z3);if(!P||P.d>3600||P.x<-400||P.x>W+400)return;
     list.push({d:P.d,f:()=>{ctx.globalAlpha=fogA(P.d)*.92*nearA(P.d);const sc=P.s*c.s*(c.type==='whale'?2.4:c.type==='humpback'?2.2:c.type==='orca'?1.5:1);at(P,sc,c.v>0?1:-1);if(c.tl)ctx.rotate(c.tl);
-      if(SAY_T.test(c.type)){const m=sprFor(c.type),len=(m?m[1]:150)*sc;c.hit={x:P.x,y:P.y,rx:len*.5,ry:len*.2+18,d:P.d,dir:c.v>0?1:-1}}
+      if(SAY_T.test(c.type)){const m=sprFor(c.type),len=(m?m[1]:150)*sc;if(m)c.beat=((t*m[2]*(c.spd||1)+c.ph/6.283)%1+1)%1;c.hit={x:P.x,y:P.y,rx:len*.5,ry:len*.2+18,d:P.d,dir:c.v>0?1:-1}}
       ctx.fillStyle=c.col&&c.z>.95?c.col:'rgb(30,72,94)';drawCreatureBody(c,t);if(c.say>0)list2.push(()=>drawSay(c))}})});
   COMPANIES.forEach(c=>{c.p3=null;const P=project(c.x-WORLD_W/2,c.y3+(c.y-c.by)*1.6,c.by*ZS);if(!P||P.d>4200)return;
     const R=c.r*P.s;if(P.x<-R*3||P.x>W+R*3||P.y<-R*4||P.y>H+R*3)return;c.p3={x:P.x,y:P.y,R,d:P.d};
@@ -2270,17 +2272,17 @@ const hug=(tA,p,x0,sg,k=.9)=>{const T=([x,y])=>[x,y+sg*tA(x0+x)*k];const q=p.map
       const i2=new THREE.Mesh(new THREE.CylinderGeometry(r*.8,r*.8,h*.95,20,1,true),mi);i2.position.copy(o.position);g.add(i2);const rim=new THREE.Mesh(new THREE.TorusGeometry(r*.9,r*.12,8,24),m);rim.rotation.x=Math.PI/2;rim.position.set(x,-1+h,z);g.add(rim)});
     g.userData.static=true;return g};
   // 생물 종류 → 스프라이트, 화면 크기(기존 그림 단위), 재생 속도
-  SPR.map={shark:['shark',175,.32],whale:['bluewhale',340,.16],bluewhale:['bluewhale',300,.18],humpback:['humpback',320,.16],orca:['orca',230,.3],manta:['manta',150,.45],turtle:['turtle',100,.45],
+  SPR.map={shark:['shark',175,.42],whale:['bluewhale',340,.16],bluewhale:['bluewhale',300,.18],humpback:['humpback',320,.16],orca:['orca',230,.3],manta:['manta',150,.45],turtle:['turtle',100,.45],
     octopus:['octopus',62,.5],squid:['squid',100,.6],shrimp:['shrimp',60,1.2],seahorse:['seahorse',66,.8],puffer:['puffer',48,.9],crab:['crab',60,.9],star:['star',42,.3],jelly:['jelly',58,.5],
     flatfish:['flatfish',96,.5],greenling:['greenling',92,1],rockfish:['rockfish',100,.9],stripedbeak:['stripedbeak',100,1],redbream:['redbream',100,1],blackbream:['blackbream',100,1],
     bluetang:['bluetang',62,1.3],yellowtang:['yellowtang',62,1.3],idol:['idol',62,1.2],angel:['angel',66,1.1],butterfly:['butterfly',60,1.3]};
-  SPR.queue=Object.keys(B).sort((a,b)=>(a==='shark'?-1:0)-(b==='shark'?-1:0));
+  SPR.queue=Object.keys(B).filter(k=>k!=='whale').sort((a,b)=>(a==='shark'?-1:0)-(b==='shark'?-1:0));
   SPR.CELL=CELL;SPR.FR=FR;
-  const BIG=new Set(['shark','bluewhale','humpback','orca','manta','turtle','whale']);
+  const BIG=new Set(['shark','bluewhale','humpback','orca','manta','turtle','whale']);const SMOOTH=new Set(['shark','bluewhale','humpback','orca']);SPR.SMOOTH=SMOOTH;
   SPR.cell={};SPR.fr={};
   SPR.buildOne=()=>{const key=SPR.queue.shift();if(!key){SPR.built=true;return}
-    const big=BIG.has(key)||key.startsWith('fl_'),C2=big?(LOW?256:420):CELL,RS=big?Math.max(GL.R,C2):GL.R;
-    try{const model=B[key]();model.rotation.y=model.userData.ry??-.42;scene.add(model);cam.position.set(0,model.userData.camY??1.1,5);cam.lookAt(0,0,0);const NF=model.userData.static?1:FR;SPR.fr[key]=NF;
+    const big=BIG.has(key)||key.startsWith('fl_'),C2=big?(LOW?256:(SMOOTH.has(key)?400:420)):CELL,RS=big?Math.max(GL.R,C2):GL.R;
+    try{const model=B[key]();model.rotation.y=model.userData.ry??-.42;scene.add(model);cam.position.set(0,model.userData.camY??1.1,5);cam.lookAt(0,0,0);const NF=model.userData.static?1:SMOOTH.has(key)?(LOW?16:24):FR;SPR.fr[key]=NF;
       if(RS!==GL.R)rd.setSize(RS,RS,false);
       const atlas=document.createElement('canvas');atlas.width=C2*NF;atlas.height=C2;const ac=atlas.getContext('2d');ac.imageSmoothingQuality='high';
       for(let f=0;f<NF;f++){model.userData.anim&&model.userData.anim(f/NF);rd.setClearColor(0x000000,0);rd.clear();rd.render(scene,cam);ac.drawImage(GL.canvas,0,0,RS,RS,f*C2,0,C2,C2)}
@@ -2292,7 +2294,8 @@ const hug=(tA,p,x0,sg,k=.9)=>{const T=([x,y])=>[x,y+sg*tA(x0+x)*k];const q=p.map
 function buildSprites(budgetMs){if(!SPR.queue||!SPR.queue.length||!SPR.buildOne)return;const t0=performance.now();while(SPR.queue.length&&performance.now()-t0<budgetMs)SPR.buildOne()}
 // 스프라이트 그리기: 현재 좌표계 원점 중심, 오른쪽을 봄. key가 없으면 false
 function drawSpr(key,len,rate,t,ph){const a=SPR.ready[key];if(!a)return false;const FR=(SPR.fr&&SPR.fr[key])||SPR.FR,C=SPR.cell[key]||SPR.CELL;ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
-  const f=Math.floor((((t*rate+ph/6.283)%1)+1)%1*FR)%FR,w=len*1.35;ctx.drawImage(a,f*C,0,C,C,-w/2,-w/2,w,w);return true}
+  const u=(((t*rate+ph/6.283)%1)+1)%1*FR,f=Math.floor(u)%FR,w=len*1.35;ctx.drawImage(a,f*C,0,C,C,-w/2,-w/2,w,w);
+  if(SPR.SMOOTH&&SPR.SMOOTH.has(key)){const fr=u-Math.floor(u);if(fr>.05){const ga=ctx.globalAlpha;ctx.globalAlpha=ga*fr;ctx.drawImage(a,((f+1)%FR)*C,0,C,C,-w/2,-w/2,w,w);ctx.globalAlpha=ga}}return true}
 function sprFor(type){return SPR.map&&SPR.map[type]}
 
 /* 누적 방문자 수 (공개 배포용). 같은 브라우저는 한 번만 셉니다 */

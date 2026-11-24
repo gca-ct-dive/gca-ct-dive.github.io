@@ -1930,6 +1930,9 @@ const SPR={ready:{},queue:[],built:false};
     return t=>t<tn?h*(.08+.92*Math.pow(t/tn,sn)):t<tm?h:h*(st+(1-st)*Math.pow(Math.max(0,1-(t-tm)/(1-tm)),1.25))}
   function eyeCute(p,x,y,z,r,side,o){const g=realEye(p,x,y,z,r,o);g.rotation.y=side>0?.2:Math.PI-.2;return g}
   /* 물고기: 옆으로 납작한 몸이 S자로 물결치며 헤엄 */
+const hug=(tA,p,x0,sg,k=.9)=>{const T=([x,y])=>[x,y+sg*tA(x0+x)*k];const q=p.map(pt=>pt.length===4?[...T([pt[0],pt[1]]),...T([pt[2],pt[3]])]:T(pt));
+    const L=Math.min(...p.map(pt=>pt.length===4?pt[2]:pt[0]));for(let i=1;i<=5;i++){const x=L*(1-i/6);q.push([x,sg*tA(x0+x)*.6])}return q};
+  /* 지느러미 밑동이 몸 곡선을 따라 몸속까지 박히도록(떠 보이지 않게) */
   function makeFish2(o){
     const g=new THREE.Group(),body=new THREE.Group();g.add(body);
     const pf=profFn(o),pts=[],NP=o.round?64:40;for(let i=0;i<=NP;i++){const t=i/NP;pts.push(new THREE.Vector2(Math.max(.004,pf(t)),1-2*t))}
@@ -1943,9 +1946,9 @@ const SPR={ready:{},queue:[],built:false};
     // 등지느러미
     (o.dorsals||[[.25,.95,.32]]).forEach(([x0,len,ht,spiny])=>{let p=[[0,0]];
       if(spiny){for(let i=0;i<=12;i++)p.push([-len*i/12,ht*(i%2?.8:1)*(1-i/18)*(i<2?.75+i*.12:1)]);p.push([-len,ht*.25]);p.push([-len*1.05,0])}else p=[[0,0],[-len*.25,ht*.95,-len*.45,ht],[-len*.7,ht*.85,-len,ht*.15],[-len,0]];
-      const m=new THREE.Mesh(FG(p,.025),finM);m.position.set(x0,topAt(x0)*.92,0);add(m,x0)});
+      const m=new THREE.Mesh(FG(hug(topAt,p,x0,1),.025),finM);m.position.set(x0,0,0);m.userData.dv=1;add(m,x0)});
     // 뒷지느러미
-    if(o.anal!==false){const [x0,len,ht]=o.anal||[-.25,.45,.2];const m=new THREE.Mesh(FG([[0,0],[-len*.3,-ht,-len*.6,-ht],[-len,-ht*.2],[-len,0]],.02),finM);m.position.set(x0,-topAt(x0)*.9,0);add(m,x0)}
+    if(o.anal!==false){const [x0,len,ht]=o.anal||[-.25,.45,.2];const m=new THREE.Mesh(FG(hug(topAt,[[0,0],[-len*.3,-ht,-len*.6,-ht],[-len,-ht*.2],[-len,0]],x0,-1),.02),finM);m.position.set(x0,0,0);m.userData.dv=1;add(m,x0)}
     // 꼬리
     const tail=new THREE.Group();tail.position.set(-.98,0,0);body.add(tail);const th=o.tailH||.5,tl=o.tailL||.42;
     const tp={fork:[[.04,.03],[-tl*.5,th*.5,-tl,th],[-tl*.62,0],[-tl,-th],[-tl*.5,-th*.5,.04,-.03]],
@@ -1957,7 +1960,7 @@ const SPR={ready:{},queue:[],built:false};
     // 가슴·배지느러미
     const pecs=[1,-1].map(s=>{const p=new THREE.Group();p.position.set(.42,-topAt(.42)*.35,s*topAt(.42)*(o.wr||.45)*.95);body.add(p);
       const m=new THREE.Mesh(FG([[0,0],[-.12,.06,-.24,.02],[-.2,-.06],[-.06,-.04]],.015),finM);m.rotation.x=s*.4;p.add(m);return p});
-    if(o.pelvic!==false)[1,-1].forEach(s=>{const m=new THREE.Mesh(FG([[0,0],[-.12,-.1],[-.16,-.06]],.012),finM);m.position.set(.18,-topAt(.18)*.92,s*.05);m.rotation.x=s*.35;add(m,.18)});
+    if(o.pelvic!==false)[1,-1].forEach(s=>{const m=new THREE.Mesh(FG([[0,0],[-.12,-.1],[-.16,-.06]],.012),finM);m.position.set(.18,-topAt(.18)*.8,s*.05);m.rotation.x=s*.35;add(m,.18)});
     // 얼굴
     const ex=o.eyeX||.6,er=(o.eye||Math.min(.13,topAt(ex)*.42))*.58,WR=o.wr||.45;[1,-1].forEach(s=>eyeCute(body,ex,topAt(ex)*.22,s*topAt(ex)*WR*.84,er,s,{iris:o.iris??0xc9a646}));
     {const lm=new THREE.MeshStandardMaterial({color:new THREE.Color(o.gillCol||o.back).multiplyScalar(.55),roughness:.6,transparent:true,opacity:.55}),gx=ex-.1;
@@ -1967,7 +1970,8 @@ const SPR={ready:{},queue:[],built:false};
     const rate=o.tailBeat||1;
     g.userData.anim=k=>{const a=k*6.283;wave(a);
       const tz=bendAt(A,WV,a,1),tz2=bendAt(A,WV,a,.94);tail.position.z=tz;tail.rotation.y=Math.atan2(tz-tz2,.06)*1.15+Math.sin(a-2.1)*.22;
-      parts.forEach(([m,x,z0])=>{m.position.z=z0+bz(a,x)});
+      parts.forEach(([m,x,z0])=>{if(m.userData.dv){const g2=m.geometry,P=g2.attributes.position;if(!g2.userData.b)g2.userData.b=P.array.slice();const B0=g2.userData.b,x0=m.position.x;
+        for(let i=0;i<P.count;i++)P.array[i*3+2]=B0[i*3+2]+bz(a,x0+B0[i*3]);P.needsUpdate=true}else m.position.z=z0+bz(a,x)});
       pecs.forEach((p,i)=>{p.rotation.y=(i?-1:1)*(.35+Math.sin(a*2+i)*.32);p.position.z=(i?-1:1)*Math.abs(p.position.z)+bz(a,.42)});
       body.rotation.y=Math.sin(a+.4)*.03};
     return g}
@@ -1988,7 +1992,7 @@ const SPR={ready:{},queue:[],built:false};
     const fg=FG([[.05,0],[-.08,.12,-.3,.38],[-.36,.36],[-.22,.06],[-.24,0],[-.22,-.06],[-.36,-.36],[-.3,-.38],[-.08,-.12,.05,0]].map(p=>p.length===4?[p[0]*(o.flukeK||1),p[1]*(o.flukeK||1),p[2]*(o.flukeK||1),p[3]*(o.flukeK||1)]:[p[0]*(o.flukeK||1),p[1]*(o.flukeK||1)]),o.round?.055:.03);
     const fm=new THREE.Mesh(fg,finM);fm.rotation.x=Math.PI/2;fl.add(fm);
     // 등지느러미
-    let dor=null;if(o.dorsal){dor=new THREE.Mesh(FG(o.dorsal,.03),finM);dor.position.set(o.dorsalX||-.45,topAt(o.dorsalX||-.45)*.9,0);body.add(dor)}
+    let dor=null;if(o.dorsal){dor=new THREE.Mesh(FG(hug(topAt,o.dorsal,o.dorsalX||-.45,1,.88),.03),finM);dor.position.set(o.dorsalX||-.45,0,0);body.add(dor)}
     // 가슴지느러미
     const flipM=o.flipCol?new THREE.MeshStandardMaterial({color:new THREE.Color(o.flipCol),roughness:.45,side:THREE.DoubleSide}):finM;
     const flips=[1,-1].map(s=>{const p=new THREE.Group();p.position.set(o.flipX||.35,-topAt(o.flipX||.35)*.55,s*topAt(o.flipX||.35)*(o.wr||.9)*.85);body.add(p);
@@ -1999,7 +2003,7 @@ const SPR={ready:{},queue:[],built:false};
     {const mm=new THREE.MeshStandardMaterial({color:new THREE.Color(o.mouth||0x1c2226),roughness:.6});[1,-1].forEach(s=>surfLine(body,topAt,WR,(o.mouthPts||[[.995,-.05],[.9,-.2],[.78,-.3],[ex+.03,-.34]]),s,.007,mm))}
     (o.extra||(()=>{}))(body,topAt);
     g.userData.anim=k=>{const a=k*6.283;wave(a);const ty=bendY(a,1),ty2=bendY(a,.95);fl.position.x=-.97;fl.position.y=ty;fl.rotation.z=-Math.atan2(ty-ty2,.05)*1.1;
-      if(dor){dor.position.y=topAt(o.dorsalX||-.45)*.9+bendY(a,(1-(o.dorsalX||-.45))/2)}
+      if(dor){dor.position.y=bendY(a,(1-(o.dorsalX||-.45))/2)}
       flips.forEach((p,i)=>{p.rotation.x=(i?-1:1)*Math.sin(a+.8)*.12;p.rotation.z=Math.sin(a+.8)*.08});body.rotation.z=Math.sin(a+1.4)*.035};
     return g}
   /* 상어: 매끈한 유선형 + 큼직하고 순한 눈, 작은 미소 (귀엽게) */

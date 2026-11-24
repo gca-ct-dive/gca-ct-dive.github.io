@@ -548,6 +548,7 @@ cv.addEventListener('pointerdown',e=>{
   if(ptrs.size>2)return;
   const p=pickP(e);
   if(bk.on&&!overview&&Math.hypot(e.clientX-bk.sx,e.clientY-bk.sy)<Math.max(40,90*bk.sk)){bk.say=2.8;downInfo=null;return}
+  if(mode3&&!overview&&sayHit(e.clientX,e.clientY)){downInfo=null;return}
   const c=mode3&&!overview?hit3(e.clientX,e.clientY):hitCompany(p);
   downInfo={x:e.clientX,y:e.clientY,c};
   if(overview)return; // 멀리 보기에서는 손을 뗄 때 처리 (두 손가락 확대와 구분)
@@ -998,6 +999,20 @@ function drawOrca(t,ph){
 }
 
 const TROP=new Set(['bluetang','yellowtang','idol','angel','butterfly']);
+/* 고래·상어 말풍선 */
+const SAY_T=/^(whale|bluewhale|humpback|orca|shark)$/;
+const SAYS={whale:['경기도 문화기술의 바다는 넓고 깊어요','천천히, 하지만 크게 자라는 중이에요','더 깊이 들어가면 멋진 기업들이 있어요'],
+  bluewhale:['경기도 문화기술의 바다는 넓고 깊어요','천천히, 하지만 크게 자라는 중이에요','더 깊이 들어가면 멋진 기업들이 있어요'],
+  humpback:['내 노래처럼 멀리멀리 퍼져 나가요','함께 헤엄치면 더 멀리 갈 수 있어요','반가워요! 기업 구슬을 눌러 봐요'],
+  orca:['우리는 늘 팀으로 움직여요','협업이 가장 큰 힘이에요','빠르게, 함께, 끝까지!'],
+  shark:['빠르게 성장하는 기업을 찾고 있어요','멈추지 않고 앞으로 나아가요','경기도 문화기술의 바다로 놀러와']};
+function sayHit(x,y){let best=null,bd=1e9;creatures.forEach(c=>{const h=c.hit;if(!h||!SAY_T.test(c.type))return;const dx=(x-h.x)/h.rx,dy=(y-h.y)/h.ry;if(dx*dx+dy*dy<1&&h.d<bd){bd=h.d;best=c}});
+  if(!best)return false;const L=SAYS[best.type]||SAYS.whale;best.msg=L[(best.mi=((best.mi??Math.floor(Math.random()*L.length))+1)%L.length)];best.say=3.2;return true}
+function drawSay(c){if(!(c.say>0)||!c.hit)return;const h=c.hit,pop=Math.min(1,(3.2-c.say)*6),fade=Math.min(1,c.say/.4);ctx.save();ctx.setTransform(DPR,0,0,DPR,0,0);ctx.globalAlpha=fade;
+  ctx.font='16px "Do Hyeon",sans-serif';const tw=ctx.measureText(c.msg).width,mw=tw+28,mh=36,ax=Math.max(mw/2+8,Math.min(W-mw/2-8,h.x+h.dir*h.rx*.45)),ay=Math.max(mh+150,Math.min(H-170,h.y-h.ry*.9));
+  ctx.translate(ax,ay);ctx.scale(pop,pop);ctx.fillStyle='rgba(4,17,28,.22)';ctx.beginPath();ctx.roundRect(-mw/2+2,-mh+3,mw,mh,18);ctx.fill();
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.roundRect(-mw/2,-mh,mw,mh,18);ctx.fill();ctx.beginPath();ctx.moveTo(-8,-2);ctx.lineTo(0,10);ctx.lineTo(8,-2);ctx.fill();
+  ctx.textAlign='center';ctx.fillStyle='#06202e';ctx.fillText(c.msg,0,-mh/2+6);ctx.restore()}
 function drawCreatureBody(c,t){
   {const m=sprFor(c.type);if(m&&SPR.ready[m[0]]){const tilt=/crab|star|flatfish|jelly|seahorse|octopus/.test(c.type)?0:Math.cos(c.ph*.45+c.s*3)*.09;ctx.rotate(-tilt);drawSpr(m[0],m[1],m[2]*(c.spd||1),t,c.ph);return}}
   if(TROP.has(c.type)){drawTropical(c.type,t,c.ph);return}
@@ -1216,7 +1231,7 @@ function update3(dt){
     const uT=sp<30&&dive3T>1.8?Math.min(1,.28+.75*Math.abs(Math.sin(yaw3))+Math.min(.4,Math.abs(yawV3)*.25)):0;up3+=(uT-up3)*Math.min(1,dt*(uT>up3?3.2:2.2))}
    bank3+=(Math.max(-.28,Math.min(.28,(side3-ps)/Math.max(dt,1e-3)*.12))-bank3)*Math.min(1,dt*4)}
   dust3.forEach(p=>{p.X+=p.vx*dt;p.Y+=p.vy*dt;if(p.Y>FLOOR3)p.Y=-700});
-  creatures.forEach(c=>{c.spd=.7+.45*Math.max(0,Math.sin(c.ph*.55+c.s*7));c.X3+=c.v*dt*1.3*c.spd;
+  creatures.forEach(c=>{c.spd=(.7+.45*Math.max(0,Math.sin(c.ph*.55+c.s*7)))*(c.say>0?.3:1);if(c.say>0)c.say-=dt;c.X3+=c.v*dt*1.3*c.spd;
     if(BIGW.test(c.type)){const vx=c.v*1.3*c.spd*4.2,vy=Math.cos(c.ph*.3+c.s*5)*26;c.X3+=c.v*dt*1.3*c.spd*3.2;c.Y3=Math.max(-700,Math.min(FLOOR3-260,c.Y3+vy*dt));c.tl=Math.atan2(vy,Math.abs(vx))*.8}
     if(!/crab|star|flatfish|whale|humpback|orca|bluewhale/.test(c.type))c.Y3+=Math.sin(c.ph*.45+c.s*3)*7*dt;if(c.X3>2200)c.X3=-2200;if(c.X3<-2200)c.X3=2200;
     if(c.type==='jelly'||c.type==='octopus'||c.type==='seahorse')c.Y3+=Math.sin(c.ph*.8)*10*dt});
@@ -1326,13 +1341,14 @@ function draw3D(t){
     const P=project(p.X,p.Y,p.Z);p.P=P;if(!P)return;if(PD&&P.d<PD.d)return;
     ctx.fillStyle=`rgba(230,246,247,${.45*fogA(P.d)})`;ctx.beginPath();ctx.arc(P.x,P.y,Math.min(5,p.r*P.s*.9),0,6.28);ctx.fill()});
   // 그릴 것들을 먼 순서대로
-  const list=[];
+  const list=[],list2=[];creatures.forEach(c=>{c.hit=null});
   ZONES.forEach((z,zi)=>{if(z.gx==null){const r0=COMPANIES.filter(c=>c.z===zi&&c.row===0);const x0=Math.min(...r0.map(c=>c.bx)),x1=Math.max(...r0.map(c=>c.bx));z.gx=(x0+x1)/2-WORLD_W/2;z.grx=(x1-x0)/2+230}
     const Z=(z.top+ZONE_HEAD-150)*ZS,P=project(z.gx,GATE_CY,Z);if(P&&P.d<4200)list.push({d:P.d,f:()=>drawGate(z,zi,P,Z)})});
   scen3.forEach(it=>{const P=project(it.X,FLOOR3,it.Z);if(!P||P.d>3800)return;if(P.x<-it.h*P.s-200||P.x>W+it.h*P.s+200)return;list.push({d:P.d,f:()=>{ctx.globalAlpha=fogA(P.d)*.95*nearA(P.d);at(P,P.s);drawScenItem(it,t)}})});
   creatures.forEach(c=>{const P=project(c.X3,c.Y3,c.Z3);if(!P||P.d>3600||P.x<-400||P.x>W+400)return;
     list.push({d:P.d,f:()=>{ctx.globalAlpha=fogA(P.d)*.92*nearA(P.d);const sc=P.s*c.s*(c.type==='whale'?2.4:c.type==='humpback'?2.2:c.type==='orca'?1.5:1);at(P,sc,c.v>0?1:-1);if(c.tl)ctx.rotate(c.tl);
-      ctx.fillStyle=c.col&&c.z>.95?c.col:'rgb(30,72,94)';drawCreatureBody(c,t)}})});
+      if(SAY_T.test(c.type)){const m=sprFor(c.type),len=(m?m[1]:150)*sc;c.hit={x:P.x,y:P.y,rx:len*.5,ry:len*.2+18,d:P.d,dir:c.v>0?1:-1}}
+      ctx.fillStyle=c.col&&c.z>.95?c.col:'rgb(30,72,94)';drawCreatureBody(c,t);if(c.say>0)list2.push(()=>drawSay(c))}})});
   COMPANIES.forEach(c=>{c.p3=null;const P=project(c.x-WORLD_W/2,c.y3+(c.y-c.by)*1.6,c.by*ZS);if(!P||P.d>4200)return;
     const R=c.r*P.s;if(P.x<-R*3||P.x>W+R*3||P.y<-R*4||P.y>H+R*3)return;c.p3={x:P.x,y:P.y,R,d:P.d};
     list.push({d:P.d,f:()=>{ctx.setTransform(DPR,0,0,DPR,0,0);ctx.globalAlpha=fogA(P.d)*Math.max(0,Math.min(1,(P.d-170)/230));labelLevel=P.d<300?0:P.d<1150?2:P.d<2300?1:0;drawCompanyAt(c,t,P.x,P.y,R,P.s);labelLevel=2;ctx.globalAlpha=1}})});
@@ -1345,6 +1361,7 @@ function draw3D(t){
   bub3.forEach(b=>{const P=project(b.X,b.Y,b.Z);if(P)list.push({d:P.d,f:()=>{ctx.setTransform(DPR,0,0,DPR,0,0);ctx.globalAlpha=fogA(P.d);ctx.strokeStyle='rgba(230,246,247,.8)';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(P.x,P.y,b.r*P.s*.8,0,6.28);ctx.stroke()}})});
   if(bk.on){const P=project(bk.X3,bk.Y3,bk.Z3);if(P)list.push({d:P.d,f:()=>{ctx.setTransform(DPR,0,0,DPR,0,0);ctx.globalAlpha=fogA(P.d);drawBukang();ctx.globalAlpha=1}})}
   list.sort((a,b)=>b.d-a.d).forEach(o=>{ctx.save();o.f();ctx.restore()});
+
   ctx.setTransform(DPR,0,0,DPR,0,0);ctx.globalAlpha=1;
   ctx.globalCompositeOperation='color';ctx.fillStyle='rgba(16,104,126,.14)';ctx.fillRect(0,0,W,H);ctx.globalCompositeOperation='source-over';
   {const hz=ctx.createLinearGradient(0,hy-H*.22,0,hy+H*.18);hz.addColorStop(0,'rgba(110,185,200,0)');hz.addColorStop(.55,'rgba(110,185,200,.14)');hz.addColorStop(1,'rgba(110,185,200,0)');ctx.fillStyle=hz;ctx.fillRect(0,hy-H*.22,W,H*.4)}
@@ -1353,6 +1370,7 @@ function draw3D(t){
   // 깊어질수록 어두워짐 + 가장자리 어둡게
   const v=ctx.createRadialGradient(W/2,H*.5,Math.min(W,H)*.35,W/2,H*.5,Math.max(W,H)*.78);v.addColorStop(0,'rgba(2,8,14,0)');v.addColorStop(1,'rgba(2,8,14,.55)');ctx.fillStyle=v;ctx.fillRect(0,0,W,H);
   if(pickFlash){pickFlash.t-=1/60;const c=pickFlash.c;if(pickFlash.t<=0||!c.p3)pickFlash=pickFlash.t<=0?null:pickFlash;else{ctx.setTransform(DPR,0,0,DPR,0,0);ctx.strokeStyle='rgba(127,240,214,'+Math.min(1,pickFlash.t*2)+')';ctx.lineWidth=3;ctx.beginPath();ctx.arc(c.p3.x,c.p3.y,c.p3.R+8+(.6-pickFlash.t)*30,0,6.28);ctx.stroke()}}
+  ctx.globalAlpha=1;list2.forEach(f=>f());
   if(fpv)drawMaskView(t);
   if(fade3>0){ctx.fillStyle=`rgba(6,40,58,${fade3})`;ctx.fillRect(0,0,W,H)}
 }
@@ -1943,7 +1961,7 @@ const SPR={ready:{},queue:[],built:false};
   /* ══ 실사에 가깝지만 귀여운 3D 물고기·고래 (회전체 몸통 + 입체 지느러미 + 실제 헤엄 동작) ══ */
   // 무늬 좌표: 가로 0 가까운 옆 → .25 배 → .5 먼 옆 → .75 등 / 세로 0 머리 → 1 꼬리
   function bodyTex(o){const c=document.createElement('canvas');c.width=256;c.height=128;const g=c.getContext('2d');
-    const gr=g.createLinearGradient(0,0,256,0);[[0,o.base],[.09,o.base],[.18,o.belly],[.25,o.belly],[.32,o.belly],[.41,o.base],[.5,o.base],[.6,o.back],[.75,o.back],[.9,o.back],[1,o.base]].forEach(([p,c2])=>gr.addColorStop(p,c2));
+    const gr=g.createLinearGradient(0,0,256,0);[[0,o.base],[.035,o.belly],[.25,o.belly],[.43,o.belly],[.485,o.base],[.53,o.back],[.75,o.back],[.965,o.back],[1,o.base]].forEach(([p,c2])=>gr.addColorStop(p,c2));
     g.fillStyle=gr;g.fillRect(0,0,256,128);
     (o.bands||[]).forEach(([v0,v1,col])=>{g.fillStyle=col;g.fillRect(0,v0*128,256,(v1-v0)*128)});
     if(o.lat!==false){g.strokeStyle=o.latCol||'rgba(255,255,255,.28)';g.lineWidth=1.3;[.955,.545].forEach(u=>{g.beginPath();for(let v=.1;v<.95;v+=.02){const x=u*256+Math.sin(v*3.1)*-3,y=v*128;v<.11?g.moveTo(x,y):g.lineTo(x,y)}g.stroke()})}
@@ -1979,7 +1997,7 @@ const hug=(tA,p,x0,sg,k=.9)=>{const T=([x,y])=>[x,y+sg*tA(x0+x)*k];const q=p.map
     const g=new THREE.Group(),body=new THREE.Group();g.add(body);
     const pf=profFn(o),pts=[],NP=o.round?64:40;for(let i=0;i<=NP;i++){const t=i/NP;pts.push(new THREE.Vector2(Math.max(.004,pf(t)),1-2*t))}
     const FG=o.round?finGeoR:finGeo;
-    const hull=new THREE.Mesh(new THREE.LatheGeometry(pts,o.round?48:30),new THREE.MeshStandardMaterial({color:0xffffff,map:bodyTex(o),roughness:o.rough||.62,metalness:0}));
+    const hull=new THREE.Mesh(new THREE.LatheGeometry(pts,o.round?48:30),new THREE.MeshStandardMaterial({color:0xffffff,map:bodyTex(o),roughness:o.rough||.62,metalness:0,side:THREE.BackSide}));
     hull.rotation.z=-Math.PI/2;hull.scale.set(1,1,o.wr||.45);body.add(hull);body.rotation.x=o.tilt||0;
     const A=o.amp||.13,WV=o.waves||.55;const wave=undulator(hull,A/(o.wr||.45),WV);
     const topAt=x=>pf((1-x)/2),bz=(a,x)=>bendAt(A,WV,a,(1-x)/2);
@@ -2004,7 +2022,7 @@ const hug=(tA,p,x0,sg,k=.9)=>{const T=([x,y])=>[x,y+sg*tA(x0+x)*k];const q=p.map
       const m=new THREE.Mesh(FG([[0,0],[-.12,.06,-.24,.02],[-.2,-.06],[-.06,-.04]],.015),finM);m.rotation.x=s*.4;p.add(m);return p});
     if(o.pelvic!==false)[1,-1].forEach(s=>{const m=new THREE.Mesh(FG([[0,0],[-.12,-.1],[-.16,-.06]],.012),finM);m.position.set(.18,-topAt(.18)*.8,s*.05);m.rotation.x=s*.35;add(m,.18)});
     // 얼굴
-    const ex=o.eyeX||.6,er=(o.eye||Math.min(.13,topAt(ex)*.42))*.58,WR=o.wr||.45;[1].forEach(s=>eyeCute(body,ex,topAt(ex)*.22,s*topAt(ex)*WR*.84,er,s,{iris:o.iris??0xc9a646}));
+    const ex=o.eyeX||.6,er=(o.eye||Math.min(.13,topAt(ex)*.42))*.58,WR=o.wr||.45;[1].forEach(s=>eyeCute(body,ex,topAt(ex)*.22,s*topAt(ex)*WR*.955,er,s,{iris:o.iris??0xc9a646}));
     {const lm=new THREE.MeshStandardMaterial({color:new THREE.Color(o.gillCol||o.back).multiplyScalar(.55),roughness:.6,transparent:true,opacity:.55}),gx=ex-.1;
      [1].forEach(s=>{if(o.gill!==false)surfLine(body,topAt,WR,[[gx+.03,.62],[gx-.05,.25],[gx-.07,-.1],[gx-.03,-.5]],s,.006,lm);
        surfLine(body,topAt,WR,[[.992,-.12],[.96,-.3],[.925,-.38]],s,.007,new THREE.MeshStandardMaterial({color:0x2a2422,roughness:.5}))})}
@@ -2022,7 +2040,7 @@ const hug=(tA,p,x0,sg,k=.9)=>{const T=([x,y])=>[x,y+sg*tA(x0+x)*k];const q=p.map
     const g=new THREE.Group(),body=new THREE.Group();g.add(body);
     const pf=profFn(o),pts=[],NP=o.round?64:44;for(let i=0;i<=NP;i++){const t=i/NP;pts.push(new THREE.Vector2(Math.max(.004,pf(t)),1-2*t))}
     const FG=o.round?finGeoR:finGeo;
-    const hull=new THREE.Mesh(new THREE.LatheGeometry(pts,o.round?48:32),new THREE.MeshStandardMaterial({color:0xffffff,map:bodyTex(o),roughness:.68,metalness:0}));
+    const hull=new THREE.Mesh(new THREE.LatheGeometry(pts,o.round?48:32),new THREE.MeshStandardMaterial({color:0xffffff,map:bodyTex(o),roughness:.68,metalness:0,side:THREE.BackSide}));
     hull.rotation.z=-Math.PI/2;hull.scale.set(1,1,o.wr||.9);body.add(hull);
     // 위아래 물결 (로컬 X = 세로)
     const geo=hull.geometry,pos=geo.attributes.position,base=pos.array.slice(),A=o.amp||.1;
@@ -2032,31 +2050,31 @@ const hug=(tA,p,x0,sg,k=.9)=>{const T=([x,y])=>[x,y+sg*tA(x0+x)*k];const q=p.map
     // 꼬리지느러미(가로)
     const fl=new THREE.Group();fl.position.set(-.97,0,0);body.add(fl);
     const fg=FG([[.07,0],[.01,.06],[-.1,.2],[-.22,.36],[-.3,.47],[-.34,.45],[-.31,.32],[-.27,.16],[-.3,.04],[-.25,0],[-.3,-.04],[-.27,-.16],[-.31,-.32],[-.34,-.45],[-.3,-.47],[-.22,-.36],[-.1,-.2],[.01,-.06]].map(p=>p.length===4?[p[0]*(o.flukeK||1),p[1]*(o.flukeK||1),p[2]*(o.flukeK||1),p[3]*(o.flukeK||1)]:[p[0]*(o.flukeK||1),p[1]*(o.flukeK||1)]),o.round?.055:.03);
-    const fm=new THREE.Mesh(fg,finM);fm.rotation.x=Math.PI/2;fl.add(fm);sph(fl,finM,.02,0,0,.09,.05,.07);body.rotation.x=o.tilt??.22;
+    const fm=new THREE.Mesh(fg,finM);fm.rotation.x=Math.PI/2;fl.add(fm);sph(fl,finM,.02,0,0,.09,.05,.07);body.rotation.x=o.tilt??.08;
     // 등지느러미
     let dor=null;if(o.dorsal){dor=new THREE.Mesh(FG(hug(topAt,o.dorsal,o.dorsalX||-.45,1,.88),.03),finM);dor.position.set(o.dorsalX||-.45,0,0);body.add(dor)}
     // 가슴지느러미
     const flipM=o.flipCol?new THREE.MeshStandardMaterial({color:new THREE.Color(o.flipCol),roughness:.45,side:THREE.DoubleSide}):finM;
-    const flips=[1,-1].map(s=>{const p=new THREE.Group();p.position.set(o.flipX||.35,-topAt(o.flipX||.35)*.55,s*topAt(o.flipX||.35)*(o.wr||.9)*.85);body.add(p);
-      const L2=o.flipL||.3;const m=new THREE.Mesh(FG([[.02,.04],[-L2*.3,.055],[-L2*.7,.03],[-L2,-.02],[-L2*.9,-.05],[-L2*.45,-.06],[0,-.035]],.028),flipM);m.rotation.x=s*1.25;m.rotation.y=s*.3;p.add(m);
+    const flips=[1,-1].map(s=>{const p=new THREE.Group();p.position.set(o.flipX||.35,-topAt(o.flipX||.35)*.5,s*topAt(o.flipX||.35)*(o.wr||.9)*.82);body.add(p);
+      const L2=o.flipL||.3;const q=new THREE.Group();q.rotation.y=s*(o.flipOut||1.05);p.add(q);const d=new THREE.Group();d.rotation.z=o.flipDroop||.6;q.add(d);const m=new THREE.Mesh(FG([[.02,.04],[-L2*.3,.055],[-L2*.7,.03],[-L2,-.02],[-L2*.9,-.05],[-L2*.45,-.06],[0,-.035]],.028),flipM);m.rotation.x=-Math.PI/2;d.add(m);
       if(o.knobs)for(let i=0;i<4;i++){const kn=new THREE.Mesh(SG,flipM);kn.scale.setScalar(.025);kn.position.set(-L2*(.2+i*.2),.04,0);m.add(kn)}return p});
     // 얼굴 (작은 눈 + 미소)
-    const ex=o.eyeX||.6,er=(o.eye||.05)*.6,WR=o.wr||.9;[1].forEach(s=>eyeCute(body,ex,-topAt(ex)*.2,s*topAt(ex)*WR*.93,er,s,{iris:0x3a2e24}));
+    const ex=o.eyeX||.6,er=(o.eye||.05)*.6,WR=o.wr||.9;[1].forEach(s=>eyeCute(body,ex,-topAt(ex)*.2,s*topAt(ex)*WR*.965,er,s,{iris:0x3a2e24}));
     {const mm=new THREE.MeshStandardMaterial({color:new THREE.Color(o.mouth||0x1c2226),roughness:.6});[1].forEach(s=>surfLine(body,topAt,WR,(o.mouthPts||[[.995,-.06],[.92,-.2],[.8,-.3],[ex+.02,-.36]]),s,.007,mm))}
     (o.extra||(()=>{}))(body,topAt);
     g.userData.anim=k=>{const a=k*6.283;wave(a);const ty=bendY(a,1),ty2=bendY(a,.95);fl.position.x=-.97;fl.position.y=ty;fl.rotation.z=-Math.atan2(ty-ty2,.05)*.9+Math.cos(a-1.6)*.32;
       if(dor){dor.position.y=bendY(a,(1-(o.dorsalX||-.45))/2)}
-      flips.forEach((p,i)=>{p.rotation.x=(i?-1:1)*Math.sin(a+.8)*.06;p.rotation.z=Math.sin(a+2)*.06});body.rotation.z=Math.sin(a+1.2)*.03;body.position.y=-Math.sin(a+.3)*A*.18};
+      flips.forEach((p,i)=>{p.rotation.x=(i?-1:1)*Math.sin(a+.8)*.08;p.rotation.z=Math.sin(a+2)*.05});body.rotation.z=Math.sin(a+1.2)*.03;body.position.y=-Math.sin(a+.3)*A*.18};
     return g}
   /* 상어: 매끈한 유선형 + 큼직하고 순한 눈, 작은 미소 (귀엽게) */
   function makeCuteShark(){return makeFish2({round:true,h:.25,tp:.4,nose:.04,fp:1.25,stalk:.11,wr:.85,base:'#7f8f99',back:'#55656f',belly:'#f2f5f6',scales:false,lat:false,rough:.62,gill:false,
-    fin:'#55656f',tail:'shark',tailH:.46,tailL:.46,amp:.17,waves:.45,eye:.06,eyeX:.74,iris:0x101214,pecs:false,tilt:.14,yaw:.045,
+    fin:'#55656f',tail:'shark',tailH:.46,tailL:.46,amp:.17,waves:.45,eye:.06,eyeX:.74,iris:0x101214,pecs:false,tilt:.05,yaw:.045,
     dorsalShape:(L,H)=>[[0,0],[-L*.22,H*.5],[-L*.45,H*.92],[-L*.56,H],[-L*.6,H*.9],[-L*.6,H*.55],[-L*.72,H*.22],[-L,H*.04],[-L,0]],
     dorsals:[[.14,.36,.42],[-.56,.13,.11]],anal:[-.6,.11,.08],
     extra:(b,topAt,add)=>{
       const gm=new THREE.MeshStandardMaterial({color:0x4e5d66,roughness:.6,transparent:true,opacity:.6});[1].forEach(s=>{for(let i=0;i<5;i++){const x=.52-i*.04;surfLine(b,topAt,.85,[[x,.26],[x-.01,0],[x-.003,-.24]],s,.0035,gm)}
         surfLine(b,topAt,.85,[[.9,-.62],[.82,-.72],[.74,-.74]],s,.007,new THREE.MeshStandardMaterial({color:0x2c3338,roughness:.5}))});
-      [1,-1].forEach(s=>{const m=new THREE.Mesh(finGeoR([[.02,0],[-.06,-.06],[-.22,-.2],[-.36,-.34],[-.39,-.35],[-.34,-.24],[-.2,-.08],[-.16,0]],.02),new THREE.MeshStandardMaterial({color:0x56666f,roughness:.45,side:THREE.DoubleSide}));m.position.set(.42,-.13,s*.13);m.rotation.x=s*1.2;m.rotation.y=s*.12;add(m,.42)});
+      [1,-1].forEach(s=>{const p=new THREE.Group();p.position.set(.44,-.12,s*.15);const q=new THREE.Group();q.rotation.y=s*1.15;p.add(q);const d=new THREE.Group();d.rotation.z=.38;q.add(d);const m=new THREE.Mesh(finGeoR([[.04,.02],[-.06,.05],[-.24,.06],[-.4,.04],[-.43,.02],[-.36,-.03],[-.18,-.08],[-.02,-.07]],.02),new THREE.MeshStandardMaterial({color:0x56666f,roughness:.45,side:THREE.DoubleSide}));m.rotation.x=-Math.PI/2;d.add(m);add(p,.44)});
     }})}
   // 종류별 설정 (실제 생김새를 따르되 둥글고 귀엽게)
   const F=makeFish2;
@@ -2094,7 +2112,7 @@ const hug=(tA,p,x0,sg,k=.9)=>{const T=([x,y])=>[x,y+sg*tA(x0+x)*k];const q=p.map
   /* 복어: 달걀 모양 몸, 짧은 가시, 흰 배, 갈색 반점, 부리 같은 이빨 */
   B.puffer=()=>{const g=new THREE.Group(),b=new THREE.Group();g.add(b);
     const pf=t=>.5*Math.pow(Math.sin(Math.PI*Math.min(1,t*1.08)),.75)+.02,pts=[];for(let i=0;i<=40;i++){const t=i/40;pts.push(new THREE.Vector2(Math.max(.01,pf(t)*(t>.8?1-(t-.8)*2.6:1)),1-2*t*.82))}
-    const hull=new THREE.Mesh(new THREE.LatheGeometry(pts,40),M(0xffffff,{map:bodyTex({base:'#c9b27a',back:'#8a7347',belly:'#f6f1e2',spots:['rgba(60,44,22,.85)',90,3.2],lat:false}),roughness:.55}));hull.rotation.z=-Math.PI/2;hull.scale.set(1,1,.86);b.add(hull);
+    const hull=new THREE.Mesh(new THREE.LatheGeometry(pts,40),M(0xffffff,{map:bodyTex({base:'#c9b27a',back:'#8a7347',belly:'#f6f1e2',spots:['rgba(60,44,22,.85)',90,3.2],lat:false}),roughness:.55,side:THREE.BackSide}));hull.rotation.z=-Math.PI/2;hull.scale.set(1,1,.86);b.add(hull);
     const sm=M(0xb79c62,{roughness:.5});for(let i=0;i<60;i++){const th=Math.acos(1-2*(i+.5)/60),ph=i*2.4,n=new THREE.Vector3(Math.cos(th),Math.sin(th)*Math.cos(ph),Math.sin(th)*Math.sin(ph)*.86);if(n.x<-.55)continue;const r=pf((1-n.x)/2*.82/1)*1.0;const c=new THREE.Mesh(CO,sm);c.scale.set(.016,.07,.016);c.position.copy(n.clone().normalize().multiplyScalar(r+.02).setX(n.x*.82));c.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),n.clone().normalize());b.add(c)}
     [1,-1].forEach(s=>{const e=realEye(b,.52,.2,s*.34,.075,{iris:0x2e8f6a});e.rotation.y=s>0?.55:Math.PI-.55});
     const tm=M(0xf2efe6,{roughness:.3});sph(b,tm,.84,-.06,0,.04,.035,.07);sph(b,tm,.83,-.11,0,.04,.03,.065);
@@ -2135,9 +2153,9 @@ const hug=(tA,p,x0,sg,k=.9)=>{const T=([x,y])=>[x,y+sg*tA(x0+x)*k];const q=p.map
   /* 오징어: 몸통(외투막) 앞쪽으로 헤엄, 끝의 마름모 지느러미, 큰 눈, 다리 8 + 긴 촉완 2 */
   B.squid=()=>{const g=new THREE.Group(),b=new THREE.Group();g.add(b);
     const tex=(()=>{const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');x.fillStyle='#f3d2c2';x.fillRect(0,0,128,128);for(let i=0;i<260;i++){x.fillStyle=`rgba(${150+Math.random()*60|0},${50+Math.random()*40|0},40,${.35+Math.random()*.5})`;x.beginPath();x.arc(Math.random()*128,Math.random()*128,1+Math.random()*2.2,0,6.28);x.fill()}return new THREE.CanvasTexture(c)})();
-    const m=M(0xffffff,{map:tex,roughness:.35,transparent:true,opacity:.92});
+    const m=M(0xffffff,{map:tex,roughness:.35,transparent:true,opacity:.92}),mB=M(0xffffff,{map:tex,roughness:.35,transparent:true,opacity:.92,side:THREE.BackSide});
     const pts=[];for(let i=0;i<=30;i++){const t=i/30;pts.push(new THREE.Vector2(Math.max(.005,.15*Math.pow(Math.sin(Math.PI*(.06+t*.94)*.62+.25),1.2)*(1-Math.pow(t,6))),.95-t*1.15))}
-    const mantle=new THREE.Mesh(new THREE.LatheGeometry(pts,28),m);mantle.rotation.z=-Math.PI/2;mantle.position.x=.0;b.add(mantle);
+    const mantle=new THREE.Mesh(new THREE.LatheGeometry(pts,28),mB);mantle.rotation.z=-Math.PI/2;mantle.position.x=.0;b.add(mantle);
     const fins=[1,-1].map(s=>{const f=new THREE.Mesh(RP([[0,0],[-.14,.17],[-.3,0]],.012),m);f.position.set(.92,0,0);f.rotation.x=s*Math.PI/2+s*.15;b.add(f);return f});
     const head=sph(b,m,-.25,0,0,.12,.1,.11);[1,-1].forEach(s=>{const e=realEye(b,-.25,.01,s*.1,.05,{iris:0x6a8aa0});e.rotation.y=s>0?.3:Math.PI-.3});
     const am=M(0xf0c2b0,{roughness:.4,transparent:true,opacity:.9});const arms=[];for(let i=0;i<10;i++){const a=i/10*6.283,long=i===2||i===7,seg=[];let p=b;const n=long?9:5;
